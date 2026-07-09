@@ -1,0 +1,75 @@
+// src/app/(app)/budget/page.tsx
+//
+// The full Budget tool: summary numbers plus an editable table of every
+// category. Free-tier feature, no gating. All the math comes from
+// lib/budget.ts — this page's job is only to fetch data and render it.
+
+import { prisma } from "@/lib/prisma";
+import { getCurrentWeddingPlan } from "@/lib/session";
+import { calculateBudgetSummary } from "@/lib/budget";
+import { formatGHS } from "@/lib/currency";
+import { StatCard } from "@/components/dashboard/StatCard";
+import { Card } from "@/components/ui/Card";
+import { BudgetCategoryRow } from "@/components/budget/BudgetCategoryRow";
+import { AddBudgetCategoryForm } from "@/components/budget/AddBudgetCategoryForm";
+
+export default async function BudgetPage() {
+  const weddingPlan = await getCurrentWeddingPlan();
+  const categories = await prisma.budgetCategory.findMany({
+    where: { weddingPlanId: weddingPlan!.id },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const summary = calculateBudgetSummary(weddingPlan!.totalBudgetGHS, categories);
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-akoma-ink">Budget</h1>
+        <p className="mt-1 text-sm text-akoma-ink/60">
+          Every figure here is in GHS and editable — this is your working budget, not a locked estimate.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="Total budget" value={formatGHS(summary.totalBudgetGHS)} />
+        <StatCard label="Allocated" value={formatGHS(summary.totalAllocatedGHS)} subtext={`${formatGHS(summary.unallocatedGHS)} unallocated`} />
+        <StatCard label="Spent" value={formatGHS(summary.totalSpentGHS)} subtext={`${Math.round(summary.percentSpent)}% of budget`} />
+        <StatCard
+          label="Remaining"
+          value={formatGHS(summary.remainingGHS)}
+          subtext={summary.remainingGHS < 0 ? "Over budget" : "Left to spend"}
+        />
+      </div>
+
+      <Card>
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-akoma-ink/10 text-xs uppercase tracking-wide text-akoma-ink/40">
+              <th className="pb-2 font-medium">Category</th>
+              <th className="pb-2 font-medium">Allocated</th>
+              <th className="pb-2 font-medium">Spent</th>
+              <th className="pb-2 font-medium">Remaining</th>
+              <th className="pb-2" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-akoma-ink/5">
+            {summary.categories.map((c) => (
+              <BudgetCategoryRow key={c.id} category={c} />
+            ))}
+          </tbody>
+        </table>
+
+        {summary.categories.length === 0 && (
+          <p className="py-6 text-center text-sm text-akoma-ink/50">
+            No budget categories yet — add your first one below.
+          </p>
+        )}
+
+        <div className="mt-4">
+          <AddBudgetCategoryForm weddingPlanId={weddingPlan!.id} />
+        </div>
+      </Card>
+    </div>
+  );
+}

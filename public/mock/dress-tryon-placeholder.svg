@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
+  <rect width="600" height="800" fill="#FBF6EC"/>
+  <rect x="20" y="20" width="560" height="760" fill="none" stroke="#D4A017" stroke-width="4" stroke-dasharray="12 8"/>
+  <g fill="none" stroke="#1F1B16" stroke-width="3">
+    <!-- simple dress silhouette, clearly illustrative/generic, not a photo -->
+    <path d="M300 160 c-30 0 -50 25 -50 55 c0 20 10 35 10 35 l-70 340 c-5 30 20 55 55 55 h110 c35 0 60 -25 55 -55 l-70 -340 c0 0 10 -15 10 -35 c0 -30 -20 -55 -50 -55 z" fill="#FFFFFF"/>
+    <circle cx="300" cy="120" r="40" fill="#FFFFFF"/>
+  </g>
+  <text x="300" y="450" text-anchor="middle" font-family="sans-serif" font-size="22" fill="#C1502E" font-weight="bold">PLACEHOLDER PREVIEW</text>
+  <text x="300" y="480" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#1F1B16">Not a real photo. No AI model was used to</text>
+  <text x="300" y="502" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#1F1B16">generate this image in the demo build.</text>
+  <text x="300" y="760" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#0B6E4F">BisaAI Dress Try-On — Experimental Stub</text>
+</svg>

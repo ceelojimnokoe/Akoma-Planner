@@ -1,0 +1,29 @@
+# dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# production
+build/
+
+# env files (never commit real secrets)
+.env
+.env*.local
+
+# local SQLite database
+prisma/dev.db
+prisma/dev.db-journal
+
+# testing / coverage
+coverage/
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

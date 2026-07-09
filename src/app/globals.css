@@ -1,0 +1,17 @@
+/* src/app/globals.css
+ * Tailwind's three layers, plus a handful of global resets/tokens that
+ * don't fit neatly as a Tailwind utility (base font smoothing, etc). Kept
+ * intentionally small — component-level styling happens via Tailwind
+ * classes in each component, not here.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+body {
+  @apply bg-akoma-cream text-akoma-ink antialiased;
+}

@@ -1,0 +1,314 @@
+// prisma/schema.prisma
+//
+// This is the single source of truth for AkomaPlanner's data model.
+// It compiles into a generated, fully-typed Prisma Client (src/generated or
+// node_modules/.prisma) that src/lib/prisma.ts imports from.
+//
+// PORTABILITY: every field type used below (String, Int, Float, Boolean,
+// DateTime, enum, relations) is standard Prisma and works identically on
+// Postgres. The only SQLite-specific line is `provider = "sqlite"` below.
+// Moving to hosted Postgres later (Neon/Supabase) means: change `provider`
+// to "postgresql", point DATABASE_URL at the hosted connection string, and
+// re-run `prisma db push` / `prisma migrate`. No model changes required.
+// (SQLite doesn't support native enums or arrays — Prisma simulates enums
+// as a checked String column on SQLite and will use a native Postgres enum
+// automatically once the provider changes. See LEARNING.md for detail.)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Plan {
+  FREE
+  PRO
+}
+
+enum City {
+  ACCRA
+  KUMASI
+  OTHER
+}
+
+enum MemberRole {
+  OWNER // the account that created the wedding plan
+  PARTNER // fiancé(e) invited as a collaborator
+  PLANNER // professional/family planner invited as a collaborator
+  COLLABORATOR // generic collaborator (e.g. parent helping plan)
+}
+
+enum Side {
+  BRIDE
+  GROOM
+  BOTH
+}
+
+enum RsvpStatus {
+  PENDING
+  YES
+  NO
+}
+
+enum VendorCategory {
+  VENUE
+  CATERING
+  PHOTOGRAPHY
+  ATTIRE
+  DECOR
+  MUSIC
+  MAKEUP
+  TRANSPORT
+  CAKE
+  OTHER
+}
+
+// Lifecycle of a couple's interest in a vendor. This enum is the backbone of
+// the "draft-and-approve, never autonomous" safety rule: BisaAI-authored
+// content can only ever create/update rows up to SENT. Only an explicit
+// human action in a server action (never a BisaAI function) may set a row to
+// ACCEPTED.
+enum VendorInterestStatus {
+  DRAFT // BisaAI (or the couple) drafted an enquiry/negotiation message; nothing sent yet
+  SENT // couple explicitly tapped "Send"
+  QUOTED // vendor responded with a quote (entered manually for MVP)
+  ACCEPTED // couple explicitly approved the quote — a human-only transition
+  DECLINED
+}
+
+// ---------------------------------------------------------------------------
+// Identity & membership
+// ---------------------------------------------------------------------------
+
+// A person with an account. Auth is stubbed for the MVP (see src/lib/session.ts)
+// so there's no passwordHash here yet — just enough shape to seed one
+// "current user" and to model who belongs to which wedding.
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+
+  ownedWeddingPlans WeddingPlan[]   @relation("WeddingOwner")
+  memberships       WeddingMember[]
+}
+
+// Join table between User and WeddingPlan. Having this as its own model
+// (rather than a single ownerId on WeddingPlan) is what lets Collaboration
+// (Pro) add a fiancé/planner later without any schema change — the seam
+// already exists even though the MVP UI only exercises the OWNER role.
+model WeddingMember {
+  id            String      @id @default(cuid())
+  role          MemberRole
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weddingPlanId String
+  weddingPlan   WeddingPlan @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  @@unique([userId, weddingPlanId])
+}
+
+// ---------------------------------------------------------------------------
+// Core wedding plan
+// ---------------------------------------------------------------------------
+
+// The central object every other feature hangs off. One row per wedding.
+// Free accounts are limited to one WeddingPlan; that limit is enforced in
+// src/lib/plan.ts (application logic), not here — the schema itself has no
+// opinion on how many a user may create.
+model WeddingPlan {
+  id             String   @id @default(cuid())
+  coupleNames    String // e.g. "Ama & Kwame" — free text, kept simple for MVP
+  weddingDate    DateTime
+  totalBudgetGHS Float
+  city           City
+  guestEstimate  Int
+  tradition      String // free text, e.g. "Akan", "Ewe", "Interfaith" — not an enum, traditions are too varied to whitelist
+  plan           Plan     @default(FREE)
+
+  // Non-guessable token used to build the public read-only share URL
+  // (/w/[shareToken]). Regenerable from settings if it ever leaks.
+  shareToken String @unique @default(cuid())
+
+  ownerUserId String
+  owner       User   @relation("WeddingOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  members          WeddingMember[]
+  budgetCategories BudgetCategory[]
+  checklistItems   ChecklistItem[]
+  guests           Guest[]
+  vendorInterests  VendorInterest[]
+  aiLogs           AIInteractionLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Budget
+// ---------------------------------------------------------------------------
+
+// One row per spending category (Venue, Catering, Attire, ...). The budget
+// calculator in src/lib/budget.ts aggregates these against
+// WeddingPlan.totalBudgetGHS — the math itself lives in code, not the schema,
+// so it stays unit-testable without a database.
+model BudgetCategory {
+  id            String      @id @default(cuid())
+  weddingPlanId String
+  weddingPlan   WeddingPlan @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
+  name          String
+  allocatedGHS  Float
+  spentGHS      Float       @default(0)
+  createdAt     DateTime    @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Checklist
+// ---------------------------------------------------------------------------
+
+model ChecklistItem {
+  id            String      @id @default(cuid())
+  weddingPlanId String
+  weddingPlan   WeddingPlan @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
+  title         String
+  category      String
+  dueDate       DateTime?
+  done          Boolean     @default(false)
+  // Seeded from the default Ghana wedding checklist template vs. added by
+  // the couple themselves — lets the UI show "default" items differently
+  // from custom ones if we want to.
+  isDefault     Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Guests
+// ---------------------------------------------------------------------------
+
+model Guest {
+  id            String      @id @default(cuid())
+  weddingPlanId String
+  weddingPlan   WeddingPlan @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
+  name          String
+  side          Side
+  rsvpStatus    RsvpStatus  @default(PENDING)
+  contact       String?
+  plusOne       Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Vendors
+// ---------------------------------------------------------------------------
+
+// Vendor listings are global (not per-wedding) — every couple browses the
+// same catalog, seeded with sample Accra/Kumasi vendors.
+model Vendor {
+  id            String         @id @default(cuid())
+  name          String
+  category      VendorCategory
+  city          City
+  description   String
+  priceLowGHS   Float
+  priceHighGHS  Float
+  rating        Float          @default(4.5)
+  contactPhone  String?
+  contactEmail  String?
+  // Pro-only listings are still visible to Free users (browsable) but
+  // interactions with them (save quote, compare, message) are gated by
+  // requirePro() — enforced in application code, not here.
+  isProFeatured Boolean        @default(false)
+  imageUrl      String?
+
+  vendorInterests VendorInterest[]
+  accommodations  Accommodation[]
+  createdAt       DateTime         @default(now())
+}
+
+// Tracks a couple's negotiation lifecycle with one vendor. This is the
+// concrete implementation of the "draft-and-approve, never autonomous"
+// rule — see the VendorInterestStatus enum comment above for the invariant.
+model VendorInterest {
+  id             String               @id @default(cuid())
+  weddingPlanId  String
+  weddingPlan    WeddingPlan          @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
+  vendorId       String
+  vendor         Vendor               @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  status         VendorInterestStatus @default(DRAFT)
+  draftMessage   String? // BisaAI-authored or hand-written enquiry/negotiation text, pre-send
+  quoteAmountGHS Float? // entered once the vendor responds (manual for MVP)
+  notes          String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@unique([weddingPlanId, vendorId])
+}
+
+// ---------------------------------------------------------------------------
+// Traditional list (global reference data, not per-wedding)
+// ---------------------------------------------------------------------------
+
+// Sample items for Ghanaian traditional/engagement lists (drinks, kente,
+// gifts for family, etc.) with ESTIMATED price ranges and a market
+// reference. Every price field here is explicitly a range, never a single
+// "quote" number — reinforces that this is estimate-only data (safe rule #3).
+model TraditionalListItem {
+  id         String   @id @default(cuid())
+  category   String // e.g. "Drinks", "Kente & Cloth", "Gifts for Family"
+  itemName   String
+  estLowGHS  Float
+  estHighGHS Float
+  market     String // e.g. "Kejetia Market, Kumasi"
+  city       City
+  notes      String?
+  createdAt  DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Accommodation (global reference data, linked loosely to a nearby vendor
+// venue for "distance from venue" context)
+// ---------------------------------------------------------------------------
+
+model Accommodation {
+  id                  String   @id @default(cuid())
+  name                String
+  city                City
+  distanceFromVenueKm Float
+  priceLowGHS         Float
+  priceHighGHS        Float
+  contactPhone        String?
+  // Loosely associated with a sample venue vendor so distance has meaning
+  // in the seed data; nullable because not every accommodation needs one.
+  nearVendorId        String?
+  nearVendor          Vendor?  @relation(fields: [nearVendorId], references: [id])
+  createdAt           DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// AI audit trail
+// ---------------------------------------------------------------------------
+
+// One row per BisaAI function call. Not asked for explicitly, but cheap to
+// add and gives us (a) a visible audit trail that nothing was ever
+// auto-sent on the couple's behalf, and (b) a realistic look at how
+// production AI products log usage. isMock is always true today since
+// every lib/bisaai.ts function is a mock — flips to false once a real
+// model call replaces a given function.
+model AIInteractionLog {
+  id            String      @id @default(cuid())
+  weddingPlanId String
+  weddingPlan   WeddingPlan @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
+  functionName  String // e.g. "draftVendorMessage", "priceTraditionalList"
+  inputSummary  String
+  outputSummary String
+  isMock        Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+}
