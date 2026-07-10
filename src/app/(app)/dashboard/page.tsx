@@ -1,9 +1,11 @@
 // src/app/(app)/dashboard/page.tsx
 //
 // The home screen once a wedding plan exists: budget snapshot, checklist
-// progress, upcoming tasks, and the countdown. A Server Component — it
-// fetches everything it needs directly via Prisma and hands plain data to
-// lib/budget.ts for the actual math, same as any other page would.
+// progress, upcoming tasks, this week's high-priority focus, a
+// recommended accommodation, vendor-booking status, and the countdown. A
+// Server Component — it fetches everything it needs directly via Prisma
+// and hands plain data to lib/budget.ts for the actual math, same as any
+// other page would.
 
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -12,28 +14,50 @@ import { calculateBudgetSummary } from "@/lib/budget";
 import { formatGHS } from "@/lib/currency";
 import { daysUntil, formatDate } from "@/lib/dates";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { VendorStatusCard } from "@/components/dashboard/VendorStatusCard";
+import { WeddingStyleCard } from "@/components/dashboard/WeddingStyleCard";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { LinkButton } from "@/components/ui/Button";
 
 export default async function DashboardPage() {
   // Layout already redirects to /onboarding if this is null, so this is
   // safe to treat as non-null here.
   const weddingPlan = await getCurrentWeddingPlan();
-  const [budgetCategories, checklistItems, guests] = await Promise.all([
-    prisma.budgetCategory.findMany({ where: { weddingPlanId: weddingPlan!.id } }),
-    prisma.checklistItem.findMany({ where: { weddingPlanId: weddingPlan!.id }, orderBy: { dueDate: "asc" } }),
-    prisma.guest.findMany({ where: { weddingPlanId: weddingPlan!.id } }),
-  ]);
+  const [budgetCategories, checklistItems, guests, recommendedAccommodation, coupleProfile, vendorBookingStatuses] =
+    await Promise.all([
+      prisma.budgetCategory.findMany({ where: { weddingPlanId: weddingPlan!.id } }),
+      prisma.checklistItem.findMany({ where: { weddingPlanId: weddingPlan!.id }, orderBy: { dueDate: "asc" } }),
+      prisma.guest.findMany({ where: { weddingPlanId: weddingPlan!.id } }),
+      // "Recommended" = closest to the venue in the wedding's own city — the
+      // simplest honest ranking we have real data for.
+      prisma.accommodation.findFirst({
+        where: { city: weddingPlan!.city },
+        orderBy: { distanceFromVenueKm: "asc" },
+      }),
+      prisma.coupleProfile.findUnique({ where: { weddingPlanId: weddingPlan!.id } }),
+      prisma.vendorBookingStatus.findMany({ where: { weddingPlanId: weddingPlan!.id } }),
+    ]);
 
   const budget = calculateBudgetSummary(weddingPlan!.totalBudgetGHS, budgetCategories);
   const doneCount = checklistItems.filter((i) => i.done).length;
   const checklistPercent = checklistItems.length ? Math.round((doneCount / checklistItems.length) * 100) : 0;
   const upcomingTasks = checklistItems.filter((i) => !i.done).slice(0, 5);
+  // This week's focus: the checklist items that actually matter most right
+  // now — not done, marked HIGH priority, soonest due date first.
+  const focusTasks = checklistItems.filter((i) => !i.done && i.priority === "HIGH").slice(0, 5);
   const confirmedGuests = guests.filter((g) => g.rsvpStatus === "YES").length;
   const days = daysUntil(weddingPlan!.weddingDate);
 
+  // Additive, not a replacement for TopBar's coupleNames title — only
+  // shown once the couple has actually filled in display names.
+  const greetingNames = [coupleProfile?.displayName1, coupleProfile?.displayName2].filter(Boolean).join(" & ");
+  const hasStyleInfo = coupleProfile?.theme || coupleProfile?.colorPalette || coupleProfile?.dressCode;
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      {greetingNames && <p className="text-sm text-akoma-ink/60">Welcome back, {greetingNames} 👋</p>}
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Wedding countdown"
@@ -44,11 +68,13 @@ export default async function DashboardPage() {
           label="Budget spent"
           value={formatGHS(budget.totalSpentGHS)}
           subtext={`of ${formatGHS(budget.totalBudgetGHS)} (${Math.round(budget.percentSpent)}%)`}
+          ring={{ percent: budget.percentSpent, tone: budget.percentSpent > 100 ? "terracotta" : "green" }}
         />
         <StatCard
           label="Checklist progress"
           value={`${checklistPercent}%`}
           subtext={`${doneCount} of ${checklistItems.length} tasks done`}
+          ring={{ percent: checklistPercent }}
         />
         <StatCard
           label="Guests confirmed"
@@ -56,6 +82,35 @@ export default async function DashboardPage() {
           subtext={`of ${guests.length} invited (est. ${weddingPlan!.guestEstimate})`}
         />
       </div>
+
+      <Card>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-akoma-ink">This week&apos;s focus</h2>
+            <p className="text-xs text-akoma-ink/50">Your highest-priority tasks, soonest due date first.</p>
+          </div>
+          <Link href="/checklist" className="text-sm text-akoma-green hover:underline">
+            View checklist →
+          </Link>
+        </div>
+        {focusTasks.length === 0 ? (
+          <p className="text-sm text-akoma-ink/60">No outstanding high-priority tasks — nice work.</p>
+        ) : (
+          <ul className="divide-y divide-akoma-ink/10">
+            {focusTasks.map((task) => (
+              <li key={task.id} className="flex items-center justify-between py-2.5">
+                <div className="flex items-center gap-2">
+                  <Badge tone="terracotta">High</Badge>
+                  <span className="text-sm font-medium text-akoma-ink">{task.title}</span>
+                </div>
+                {task.dueDate && (
+                  <Badge tone={daysUntil(task.dueDate) < 0 ? "terracotta" : "neutral"}>{formatDate(task.dueDate)}</Badge>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -113,6 +168,44 @@ export default async function DashboardPage() {
           </ul>
         </Card>
       </div>
+
+      <div className={hasStyleInfo ? "grid gap-6 lg:grid-cols-3" : ""}>
+        <div className={hasStyleInfo ? "lg:col-span-2" : ""}>
+          <VendorStatusCard statuses={vendorBookingStatuses} />
+        </div>
+        {hasStyleInfo && (
+          <WeddingStyleCard
+            theme={coupleProfile?.theme ?? null}
+            colorPalette={coupleProfile?.colorPalette ?? null}
+            dressCode={coupleProfile?.dressCode ?? null}
+          />
+        )}
+      </div>
+
+      <Card>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-semibold text-akoma-ink">Recommended accommodation</h2>
+          <LinkButton href="/accommodation" variant="ghost" size="sm">
+            See more options →
+          </LinkButton>
+        </div>
+        {recommendedAccommodation ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-akoma-ink/10 p-3">
+            <div>
+              <p className="font-medium text-akoma-ink">{recommendedAccommodation.name}</p>
+              <p className="text-xs text-akoma-ink/50">
+                {recommendedAccommodation.distanceFromVenueKm.toFixed(1)} km from the venue, for out-of-town family
+              </p>
+            </div>
+            <p className="text-sm font-medium text-akoma-ink">
+              {formatGHS(recommendedAccommodation.priceLowGHS)}–{formatGHS(recommendedAccommodation.priceHighGHS)}{" "}
+              <span className="font-normal text-akoma-ink/50">/ night</span>
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-akoma-ink/60">No accommodation listings for your city yet.</p>
+        )}
+      </Card>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <QuickLink href="/vendors" label="Browse vendors" />

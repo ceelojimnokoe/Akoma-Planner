@@ -49,7 +49,7 @@ export default function LandingPage() {
             <LinkButton href="/pricing" variant="ghost" size="sm">
               Pricing
             </LinkButton>
-            <LinkButton href="/onboarding" variant="primary" size="sm">
+            <LinkButton href="/signup" variant="primary" size="sm">
               Get Started
             </LinkButton>
           </nav>
@@ -70,11 +70,11 @@ export default function LandingPage() {
             way. Nothing gets sent or booked without you.
           </p>
           <div className="mt-8 flex justify-center gap-3">
-            <LinkButton href="/onboarding" size="lg">
-              Start planning — free
+            <LinkButton href="/signup" size="lg">
+              Start Planning — Free
             </LinkButton>
             <LinkButton href="/pricing" variant="ghost" size="lg">
-              See Pro features
+              See Pro Features
             </LinkButton>
           </div>
         </section>

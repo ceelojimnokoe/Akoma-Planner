@@ -21,6 +21,7 @@ export function AddChecklistItemForm({
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState(categories[0] ?? "");
   const [dueDate, setDueDate] = useState("");
+  const [priority, setPriority] = useState<"LOW" | "MEDIUM" | "HIGH">("MEDIUM");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -33,6 +34,7 @@ export function AddChecklistItemForm({
         title,
         category: category || "Other",
         dueDate: dueDate || undefined,
+        priority,
       });
       if (!result.ok) {
         setError(result.error ?? "Something went wrong");
@@ -40,11 +42,12 @@ export function AddChecklistItemForm({
       }
       setTitle("");
       setDueDate("");
+      setPriority("MEDIUM");
     });
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 border-t border-akoma-ink/10 pt-4">
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
       <div className="min-w-[180px] flex-1">
         <label className="mb-1 block text-xs font-medium text-akoma-ink/70">New task</label>
         <input
@@ -79,6 +82,14 @@ export function AddChecklistItemForm({
           onChange={(e) => setDueDate(e.target.value)}
           className={inputClasses}
         />
+      </div>
+      <div className="w-32">
+        <label className="mb-1 block text-xs font-medium text-akoma-ink/70">Priority</label>
+        <select value={priority} onChange={(e) => setPriority(e.target.value as typeof priority)} className={inputClasses}>
+          <option value="LOW">Low</option>
+          <option value="MEDIUM">Medium</option>
+          <option value="HIGH">High</option>
+        </select>
       </div>
       <Button type="submit" disabled={isPending} size="sm">
         {isPending ? "Adding…" : "Add task"}

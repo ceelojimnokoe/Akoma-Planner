@@ -27,12 +27,14 @@ const CORE_ITEMS: NavItem[] = [
   { href: "/vendors", label: "Vendors" },
   { href: "/bisaai", label: "BisaAI" },
   { href: "/calendar", label: "Calendar" },
+  // Accommodation is free (see LEARNING.md) — lives with the core items,
+  // not the Pro section below, so its nav placement matches its gating.
+  { href: "/accommodation", label: "Accommodation" },
 ];
 
 const PRO_ITEMS: NavItem[] = [
   { href: "/traditional-list", label: "Traditional List", proOnly: true },
   { href: "/dress-tryon", label: "Dress Try-On", proOnly: true },
-  { href: "/accommodation", label: "Accommodation", proOnly: true },
   { href: "/collaboration", label: "Collaboration", proOnly: true },
   { href: "/design", label: "Design Tools", proOnly: true },
 ];
@@ -57,6 +59,7 @@ export function Sidebar() {
       <div className="space-y-1 px-3 pb-5">
         <div className="my-3 border-t border-akoma-ink/10" />
         <NavLink item={{ href: "/pricing", label: "Pricing" }} active={pathname.startsWith("/pricing")} />
+        <NavLink item={{ href: "/profile", label: "Profile" }} active={pathname.startsWith("/profile")} />
         <NavLink item={{ href: "/settings", label: "Settings" }} active={pathname.startsWith("/settings")} />
       </div>
     </aside>

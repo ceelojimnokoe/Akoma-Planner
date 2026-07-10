@@ -37,7 +37,7 @@ export function AddBudgetCategoryForm({ weddingPlanId }: { weddingPlanId: string
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 border-t border-akoma-ink/10 pt-4">
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
       <div>
         <label className="mb-1 block text-xs font-medium text-akoma-ink/70">New category</label>
         <input

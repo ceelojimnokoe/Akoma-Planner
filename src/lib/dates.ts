@@ -17,6 +17,11 @@ export function formatDate(date: Date): string {
   return date.toLocaleDateString("en-GH", { year: "numeric", month: "short", day: "numeric" });
 }
 
+/** "YYYY-MM-DD" for pre-filling an <input type="date">'s value from a stored Date. */
+export function toDateInputValue(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
 /** True if both dates fall on the same calendar day (ignores time-of-day). */
 export function isSameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();

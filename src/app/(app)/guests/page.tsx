@@ -11,6 +11,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { Card } from "@/components/ui/Card";
 import { GuestRow } from "@/components/guests/GuestRow";
 import { AddGuestForm } from "@/components/guests/AddGuestForm";
+import { RsvpPieChart } from "@/components/guests/RsvpPieChart";
 
 export default async function GuestsPage() {
   const weddingPlan = await getCurrentWeddingPlan();
@@ -34,12 +35,22 @@ export default async function GuestsPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total guests" value={String(guests.length)} />
-        <StatCard label="Confirmed" value={String(confirmed)} />
-        <StatCard label="Pending" value={String(pending)} />
-        <StatCard label="Declined" value={String(declined)} />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 lg:col-span-2">
+          <StatCard label="Total guests" value={String(guests.length)} />
+          <StatCard label="Confirmed" value={String(confirmed)} />
+          <StatCard label="Pending" value={String(pending)} />
+          <StatCard label="Declined" value={String(declined)} />
+        </div>
+        <Card>
+          <p className="mb-3 text-sm font-medium text-akoma-ink">RSVP breakdown</p>
+          <RsvpPieChart confirmed={confirmed} pending={pending} declined={declined} />
+        </Card>
       </div>
+
+      <Card>
+        <AddGuestForm weddingPlanId={weddingPlan!.id} />
+      </Card>
 
       <Card>
         <table className="w-full text-left">
@@ -59,12 +70,8 @@ export default async function GuestsPage() {
         </table>
 
         {guests.length === 0 && (
-          <p className="py-6 text-center text-sm text-akoma-ink/50">No guests yet — add your first one below.</p>
+          <p className="py-6 text-center text-sm text-akoma-ink/50">No guests yet — add one above.</p>
         )}
-
-        <div className="mt-4">
-          <AddGuestForm weddingPlanId={weddingPlan!.id} />
-        </div>
       </Card>
     </div>
   );

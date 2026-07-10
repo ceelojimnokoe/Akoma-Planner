@@ -12,6 +12,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { Card } from "@/components/ui/Card";
 import { BudgetCategoryRow } from "@/components/budget/BudgetCategoryRow";
 import { AddBudgetCategoryForm } from "@/components/budget/AddBudgetCategoryForm";
+import { BudgetProgressBar } from "@/components/budget/BudgetProgressBar";
 
 export default async function BudgetPage() {
   const weddingPlan = await getCurrentWeddingPlan();
@@ -31,6 +32,10 @@ export default async function BudgetPage() {
         </p>
       </div>
 
+      <Card>
+        <AddBudgetCategoryForm weddingPlanId={weddingPlan!.id} />
+      </Card>
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Total budget" value={formatGHS(summary.totalBudgetGHS)} />
         <StatCard label="Allocated" value={formatGHS(summary.totalAllocatedGHS)} subtext={`${formatGHS(summary.unallocatedGHS)} unallocated`} />
@@ -41,6 +46,10 @@ export default async function BudgetPage() {
           subtext={summary.remainingGHS < 0 ? "Over budget" : "Left to spend"}
         />
       </div>
+
+      <Card>
+        <BudgetProgressBar spentGHS={summary.totalSpentGHS} totalGHS={summary.totalBudgetGHS} percent={summary.percentSpent} />
+      </Card>
 
       <Card>
         <table className="w-full text-left">
@@ -62,13 +71,9 @@ export default async function BudgetPage() {
 
         {summary.categories.length === 0 && (
           <p className="py-6 text-center text-sm text-akoma-ink/50">
-            No budget categories yet — add your first one below.
+            No budget categories yet — add one above.
           </p>
         )}
-
-        <div className="mt-4">
-          <AddBudgetCategoryForm weddingPlanId={weddingPlan!.id} />
-        </div>
       </Card>
     </div>
   );

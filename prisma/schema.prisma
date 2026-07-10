@@ -87,14 +87,27 @@ enum VendorInterestStatus {
 // Identity & membership
 // ---------------------------------------------------------------------------
 
-// A person with an account. Auth is stubbed for the MVP (see src/lib/session.ts)
-// so there's no passwordHash here yet — just enough shape to seed one
-// "current user" and to model who belongs to which wedding.
+// A person with an account. Real sign-up now exists (src/server/actions/auth.ts)
+// alongside the original seeded stub — see src/lib/session.ts for how the two
+// coexist. passwordHash is nullable because the seeded stub user (and any
+// future social-login user) may not have one.
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  // Hashed with Node's built-in crypto.scrypt (src/lib/auth.ts) — never a
+  // plaintext password. Null for the seeded stub account and for social
+  // logins (which don't have a password at all).
+  passwordHash  String?
+  // "EMAIL" for a real sign-up, or the social button name ("GOOGLE",
+  // "APPLE", "FACEBOOK", "MICROSOFT") for a lightweight record of intent —
+  // those buttons are disabled/"coming soon" today (see SignUpForm.tsx),
+  // no OAuth is actually wired up yet.
+  authProvider  String   @default("EMAIL")
+  // Never set true by a real verification link (none is sent yet) — only by
+  // the clearly-labelled demo shortcut on /verify-email.
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
 
   ownedWeddingPlans WeddingPlan[]   @relation("WeddingOwner")
   memberships       WeddingMember[]
@@ -141,15 +154,164 @@ model WeddingPlan {
   ownerUserId String
   owner       User   @relation("WeddingOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
 
-  members          WeddingMember[]
-  budgetCategories BudgetCategory[]
-  checklistItems   ChecklistItem[]
-  guests           Guest[]
-  vendorInterests  VendorInterest[]
-  aiLogs           AIInteractionLog[]
+  members               WeddingMember[]
+  budgetCategories      BudgetCategory[]
+  checklistItems        ChecklistItem[]
+  guests                Guest[]
+  vendorInterests       VendorInterest[]
+  aiLogs                AIInteractionLog[]
+  coupleProfile         CoupleProfile?
+  vendorBookingStatuses VendorBookingStatus[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Onboarding profile (everything the wizard collects beyond WeddingPlan's
+// original 6 core fields — kept in its own table rather than bloating
+// WeddingPlan, so every existing read of weddingPlan.coupleNames/weddingDate/
+// etc. keeps working untouched. One row per wedding, all fields optional
+// since a couple can always fill more in later from /profile.)
+// ---------------------------------------------------------------------------
+
+enum IndoorOutdoor {
+  INDOOR
+  OUTDOOR
+  BOTH
+}
+
+enum WeddingType {
+  TRADITIONAL
+  WHITE_WEDDING
+  CIVIL
+  DESTINATION
+  MULTIPLE_CEREMONIES
+}
+
+enum BudgetFlexibility {
+  STRICT
+  SOMEWHAT_FLEXIBLE
+  VERY_FLEXIBLE
+}
+
+enum PlanningExperience {
+  FIRST_TIME
+  PLANNED_BEFORE
+  HIRING_A_PLANNER
+}
+
+enum DiyVsProfessional {
+  MOSTLY_DIY
+  MOSTLY_PROFESSIONAL
+  A_MIX
+}
+
+enum CommunicationStyle {
+  DETAILED_EXPLANATIONS
+  QUICK_SUMMARIES
+  WEEKLY_CHECK_IN
+}
+
+model CoupleProfile {
+  id            String      @id @default(cuid())
+  weddingPlanId String      @unique
+  weddingPlan   WeddingPlan @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
+
+  // Couple information — partner1's email/phone live on the account (User),
+  // these cover the second partner plus how the couple wants to be addressed.
+  partner1Name  String?
+  partner2Name  String?
+  displayName1  String?
+  displayName2  String?
+  partner1Phone String?
+  partner2Phone String?
+  partner2Email String?
+
+  // Wedding details beyond WeddingPlan.weddingDate (the "tentative" date).
+  ceremonyDate  DateTime?
+  receptionDate DateTime?
+  venueName     String?
+  indoorOutdoor IndoorOutdoor?
+  weddingType   WeddingType?
+
+  // Guest information beyond WeddingPlan.guestEstimate.
+  bridalPartySize Int?
+  groomPartySize  Int?
+
+  // Budget — isDiaspora replaces a currency selector: the app stays
+  // GHS-only (see lib/currency.ts), this just flags a couple planning from
+  // abroad so BisaAI/future features can account for that context.
+  budgetFlexibility BudgetFlexibility?
+  isDiaspora        Boolean            @default(false)
+
+  // Wedding style — informational personalization only (see
+  // dashboard/page.tsx's "Your wedding style" card); never used to re-skin
+  // the app's own chrome or charts.
+  theme        String?
+  colorPalette String?
+  dressCode    String?
+  visionNotes  String?
+  pinterestUrl String?
+
+  // Planning preferences.
+  biggestConcern            String?
+  planningExperience        PlanningExperience?
+  diyVsProfessional         DiyVsProfessional?
+  needVendorRecommendations Boolean             @default(true)
+  needTimelineAssistance    Boolean             @default(true)
+  communicationStyle        CommunicationStyle?
+
+  // Relationship.
+  proposalDate   DateTime?
+  engagementDate DateTime?
+  loveStory      String?
+
+  // Additional notes.
+  specialRequests               String?
+  accessibilityRequirements     String?
+  culturalReligiousRequirements String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// A separate, purpose-built category list for the onboarding "have you
+// booked this yet?" checklist — deliberately NOT the same enum as
+// VendorCategory (which drives the real Vendor catalog/seed data and
+// doesn't split out Videographer/DJ/MC/Florist/Hair the way this list
+// does). Changing that enum to match would ripple through the whole
+// vendor-browsing feature for a much smaller self-reported checklist.
+enum OnboardingVendorCategory {
+  VENUE
+  PHOTOGRAPHER
+  VIDEOGRAPHER
+  CATERER
+  DJ_BAND
+  MC
+  DECOR
+  FLORIST
+  MAKEUP
+  HAIR
+  CAKE
+  TRANSPORTATION
+}
+
+enum BookingStatus {
+  NOT_STARTED
+  RESEARCHING
+  BOOKED
+}
+
+model VendorBookingStatus {
+  id            String                   @id @default(cuid())
+  weddingPlanId String
+  weddingPlan   WeddingPlan              @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
+  category      OnboardingVendorCategory
+  status        BookingStatus            @default(NOT_STARTED)
+  updatedAt     DateTime                 @updatedAt
+
+  @@unique([weddingPlanId, category])
 }
 
 // ---------------------------------------------------------------------------
@@ -186,7 +348,18 @@ model ChecklistItem {
   // the couple themselves — lets the UI show "default" items differently
   // from custom ones if we want to.
   isDefault     Boolean     @default(false)
+  // Drives the Checklist page's priority badge and the Dashboard's
+  // "This week's focus" list (HIGH + not done, soonest due date first).
+  // Defaults to MEDIUM so existing rows and quickly-added tasks don't
+  // need a decision up front.
+  priority      Priority    @default(MEDIUM)
   createdAt     DateTime    @default(now())
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
 }
 
 // ---------------------------------------------------------------------------

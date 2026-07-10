@@ -42,6 +42,10 @@ export default async function ChecklistPage() {
         </p>
       </div>
 
+      <Card>
+        <AddChecklistItemForm weddingPlanId={weddingPlan!.id} categories={knownCategories} />
+      </Card>
+
       <div className="grid grid-cols-3 gap-4">
         <StatCard label="Progress" value={`${percent}%`} subtext={`${doneCount} of ${items.length} done`} />
         <StatCard label="Overdue" value={String(overdueCount)} subtext={overdueCount ? "Needs attention" : "All caught up"} />
@@ -61,10 +65,6 @@ export default async function ChecklistPage() {
           </Card>
         );
       })}
-
-      <Card>
-        <AddChecklistItemForm weddingPlanId={weddingPlan!.id} categories={knownCategories} />
-      </Card>
     </div>
   );
 }

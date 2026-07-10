@@ -8,18 +8,20 @@
 
 export const USD_TO_GHS = 12.5;
 
-// Intl.NumberFormat handles thousands separators and decimal places
-// correctly (and locale-appropriately) so we never hand-roll string math
-// on money — that's a common source of off-by-one-decimal bugs.
+// Intl.NumberFormat handles thousands separators correctly (and
+// locale-appropriately) so we never hand-roll string math on money —
+// that's a common source of off-by-one-decimal bugs. Whole cedis only,
+// site-wide — pesewas aren't meaningful at wedding-budget scale, and the
+// trailing ".00" on every figure was just noise.
 const ghsFormatter = new Intl.NumberFormat("en-GH", {
   style: "currency",
   currency: "GHS",
   currencyDisplay: "narrowSymbol",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
 });
 
-/** Formats a number as "GH₵ 1,234.50". */
+/** Formats a number as "GH₵ 1,234" (rounded to the nearest whole cedi). */
 export function formatGHS(amount: number): string {
   return ghsFormatter.format(amount);
 }

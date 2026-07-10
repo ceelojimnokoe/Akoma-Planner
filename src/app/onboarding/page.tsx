@@ -13,7 +13,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
-import { OnboardingForm } from "@/components/onboarding/OnboardingForm";
+import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 
 export const dynamic = "force-dynamic";
 
@@ -24,14 +24,15 @@ export default async function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-akoma-cream px-6 py-16">
-      <div className="mx-auto max-w-xl text-center">
+      <div className="mx-auto max-w-2xl text-center">
         <h1 className="text-3xl font-bold text-akoma-ink">Let&apos;s set up your wedding</h1>
         <p className="mt-2 text-akoma-ink/70">
-          A few details to get your dashboard, budget, and checklist ready. You can change any of this later.
+          A few details to get your dashboard, budget, and checklist ready — and to personalize BisaAI. You can change
+          any of this later from your profile.
         </p>
       </div>
       <div className="mt-10">
-        <OnboardingForm />
+        <OnboardingWizard prefillName={user.name} />
       </div>
     </div>
   );

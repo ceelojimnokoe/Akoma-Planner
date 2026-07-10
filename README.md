@@ -26,7 +26,7 @@ npm run db:reset                 # wipe and re-seed the database
 
 **Always run `npm run build` before trusting a change is done, not just `npm run dev`.** This project hit a real bug where every data-driven page was silently getting statically prerendered at build time (see `LEARNING.md` #28) — dev mode never surfaces that class of issue because it always renders fresh regardless of a route's static/dynamic classification.
 
-There is no login: the app uses a single stubbed account (see [Auth](#auth-stubbed) below). `npm run db:seed` creates that account along with one fully-populated sample wedding, so every screen has real content immediately.
+Real sign-up/log-in now exists (see [Auth](#auth) below) — but `npm run db:seed` also creates a seeded demo account (`ama.owusu@example.com` / `akomaplanner-demo`) with one fully-populated sample wedding, so every screen has real content immediately even before you create your own account.
 
 ## Tech stack
 
@@ -85,7 +85,7 @@ Read this before considering any part of this app launch-ready.
 | **AI (BisaAI)** | All 13 functions in `lib/bisaai.ts` are mocks — keyword lookups, templated text, or fixed catalogs, each clearly labelled (`meta.isMock`, `MockBadge` in the UI) | Replace each function body with a real model call (OpenAI/Anthropic — see `BISAAI_PROVIDER`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` in `.env.example`). Keep the same input/output shapes and nothing above `lib/bisaai.ts` needs to change. |
 | **Dress try-on** | Experimental stub — returns a static placeholder SVG, never processes the uploaded photo (the function signature doesn't even accept photo bytes) | Needs a real image-generation provider, a signed-upload flow, and an explicit photo-retention policy. See the header comment on `dressTryOn()`. |
 | **Payments** | Fully stubbed — `/checkout` has no payment fields at all, one button that immediately flips the plan to Pro | Needs Paystack or Hubtel Mobile Money integration (env vars already scaffolded: `PAYSTACK_SECRET_KEY`, `PAYSTACK_PUBLIC_KEY`, `HUBTEL_CLIENT_ID`, `HUBTEL_CLIENT_SECRET`). Critically: a real integration must flip the plan from a **webhook** that verifies payment, never from a client-triggered action like the current stub. See `src/server/actions/billing.ts`. |
-| **Auth** | Stubbed — `src/lib/session.ts` always returns the same seeded user, no login screen | Needs a real auth provider (NextAuth/Auth.js or similar). The `User`/`WeddingMember` schema is already shaped for it — see `LEARNING.md` #5. |
+| **Auth** | Real but lightweight — `/signup` and `/login` create real accounts and verify real password hashes (`crypto.scrypt`, see `lib/auth.ts`), but the session cookie is unsigned and there's no email verification, password reset, or OAuth (all three exist as clearly-labelled placeholder pages) | Needs a real session library (NextAuth/Auth.js or a signed JWT), a transactional email provider for verification/reset, and real OAuth apps for the four social buttons already in the UI. See `LEARNING.md` #34. |
 | **Vendor data** | 38 realistic but fictional seeded vendors across Accra/Kumasi (`prisma/seed.ts`) | Needs a real, maintained vendor dataset — either a manual admin/CMS flow or a real sourcing pipeline. |
 | **Vendor negotiation** | Fully real (not stubbed) — the DRAFT → SENT → QUOTED → ACCEPTED/DECLINED lifecycle actually persists to the database and is enforced by which Server Actions are allowed to write which status | No changes needed structurally; works as designed once real AI drafting is wired in. |
 | **Budget, checklist, guests, calendar, export** | Fully real — no mocks, real CRUD against the local database | None — these work as a real product today. |
@@ -97,9 +97,11 @@ Read this before considering any part of this app launch-ready.
 
 Run with `npm test` (or `npm run test:watch` while developing).
 
-## Auth (stubbed)
+## Auth
 
-There's no login. `src/lib/session.ts`'s `getCurrentUser()` always returns the same seeded account (`ama.owusu@example.com`, created by `prisma/seed.ts`). Every page and Server Action that needs "the current user" calls this function — swapping in real auth later means replacing its implementation, not touching every call site.
+`/signup` and `/login` create and verify real accounts — real password hashing via Node's built-in `crypto.scrypt` (`src/lib/auth.ts`), a real (but unsigned, not production-hardened) session cookie. `src/lib/session.ts`'s `getCurrentUser()` checks that cookie first and falls back to the same seeded stub account as before (`ama.owusu@example.com`, created by `prisma/seed.ts`) if there isn't one — so the seeded demo keeps working with zero setup. Every page and Server Action that needs "the current user" calls `getCurrentUser()`/`getCurrentWeddingPlan()`, so this was a drop-in change under existing call sites, not a rewrite of them.
+
+Still explicitly not built: email verification (`/verify-email` is a static placeholder with a demo-only "I've verified" shortcut), password reset (`/forgot-password` shows a static success message, no email sent), and the four social login buttons (visibly disabled, labelled "Soon"). See `LEARNING.md` #34.
 
 ## License
 

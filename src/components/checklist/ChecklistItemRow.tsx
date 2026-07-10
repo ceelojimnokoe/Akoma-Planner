@@ -1,22 +1,34 @@
 // src/components/checklist/ChecklistItemRow.tsx
 //
 // One checklist row: a checkbox (toggles done via server action,
-// optimistic on the client) plus a delete control. Optimistic update on
-// the checkbox specifically matters here — a checkbox that visibly lags
-// a network round-trip feels broken in a way a text field saving on blur
-// doesn't.
+// optimistic on the client), a priority selector, and a delete control.
+// Optimistic update on the checkbox specifically matters here — a
+// checkbox that visibly lags a network round-trip feels broken in a way
+// a text field saving on blur doesn't.
 
 "use client";
 
 import { useState, useTransition } from "react";
 import type { ChecklistItem } from "@prisma/client";
-import { toggleChecklistItem, deleteChecklistItem } from "@/server/actions/checklist";
+import { toggleChecklistItem, deleteChecklistItem, updateChecklistItemPriority } from "@/server/actions/checklist";
 import { formatDate, daysUntil } from "@/lib/dates";
 import { Badge } from "@/components/ui/Badge";
 import clsx from "clsx";
 
+type Priority = ChecklistItem["priority"];
+
+// Same "urgency" logic as a traffic light — HIGH borrows the overdue
+// color on purpose, so a HIGH-priority task and an overdue task read as
+// equally urgent at a glance instead of competing for attention.
+const PRIORITY_TONE: Record<Priority, "terracotta" | "gold" | "neutral"> = {
+  HIGH: "terracotta",
+  MEDIUM: "gold",
+  LOW: "neutral",
+};
+
 export function ChecklistItemRow({ item }: { item: ChecklistItem }) {
   const [done, setDone] = useState(item.done);
+  const [priority, setPriority] = useState<Priority>(item.priority);
   const [isPending, startTransition] = useTransition();
   const overdue = !done && item.dueDate && daysUntil(item.dueDate) < 0;
 
@@ -26,6 +38,16 @@ export function ChecklistItemRow({ item }: { item: ChecklistItem }) {
     startTransition(async () => {
       const result = await toggleChecklistItem(item.id, next);
       if (!result.ok) setDone(!next); // roll back on failure
+    });
+  }
+
+  function handlePriorityChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const next = e.target.value as Priority;
+    const prev = priority;
+    setPriority(next); // optimistic, same pattern as the checkbox above
+    startTransition(async () => {
+      const result = await updateChecklistItemPriority(item.id, next);
+      if (!result.ok) setPriority(prev);
     });
   }
 
@@ -53,6 +75,19 @@ export function ChecklistItemRow({ item }: { item: ChecklistItem }) {
         {item.dueDate && (
           <Badge tone={overdue ? "terracotta" : "neutral"}>{formatDate(item.dueDate)}</Badge>
         )}
+        <div className="flex items-center gap-1">
+          <select
+            value={priority}
+            onChange={handlePriorityChange}
+            aria-label={`Priority for ${item.title}`}
+            className="rounded-md border border-akoma-ink/15 bg-transparent px-1.5 py-0.5 text-xs focus:border-akoma-green focus:outline-none"
+          >
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+          </select>
+          <Badge tone={PRIORITY_TONE[priority]}>{priority.charAt(0) + priority.slice(1).toLowerCase()}</Badge>
+        </div>
         <button
           onClick={handleDelete}
           className="text-xs text-akoma-ink/40 hover:text-akoma-terracotta"

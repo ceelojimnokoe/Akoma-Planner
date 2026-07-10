@@ -12,6 +12,7 @@ import { Badge, ProBadge } from "@/components/ui/Badge";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { formatDate } from "@/lib/dates";
 import { downgradeToFree } from "@/server/actions/billing";
+import { signOut } from "@/server/actions/auth";
 
 export default async function SettingsPage() {
   const user = await getCurrentUser();
@@ -25,13 +26,38 @@ export default async function SettingsPage() {
       </div>
 
       <Card>
-        <h2 className="mb-3 font-semibold text-akoma-ink">Account</h2>
-        <p className="text-sm text-akoma-ink">{user.name}</p>
-        <p className="text-sm text-akoma-ink/60">{user.email}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="mb-3 font-semibold text-akoma-ink">Account</h2>
+            <p className="text-sm text-akoma-ink">{user.name}</p>
+            <p className="text-sm text-akoma-ink/60">{user.email}</p>
+            {!user.emailVerified && (
+              <LinkButton href="/verify-email" size="sm" variant="ghost" className="mt-2">
+                Verify email
+              </LinkButton>
+            )}
+          </div>
+          <form action={signOut}>
+            <Button type="submit" variant="ghost" size="sm">
+              Sign out
+            </Button>
+          </form>
+        </div>
         <p className="mt-3 rounded-lg bg-akoma-ink/5 px-3 py-2 text-xs text-akoma-ink/50">
-          This demo uses a single stubbed account — there&apos;s no real login yet. See{" "}
-          <code>src/lib/session.ts</code> and the README for what a real auth integration would replace.
+          Real sign-up/log-in now exists (password hashing included) alongside the original seeded demo
+          account — but sessions are a plain cookie, not a hardened one. See <code>src/lib/auth.ts</code> and
+          the README for what a production auth integration would replace.
         </p>
+      </Card>
+
+      <Card>
+        <h2 className="mb-3 font-semibold text-akoma-ink">Profile</h2>
+        <p className="text-sm text-akoma-ink/60">
+          Partner details, wedding style, planning preferences, and more from your onboarding answers.
+        </p>
+        <LinkButton href="/profile" size="sm" variant="secondary" className="mt-3">
+          Edit profile
+        </LinkButton>
       </Card>
 
       <Card>

@@ -16,7 +16,8 @@
 
 import { PrismaClient, City, VendorCategory, Side, RsvpStatus, VendorInterestStatus } from "@prisma/client";
 import { buildDefaultChecklist } from "../src/lib/checklist-defaults";
-import { STUB_USER_EMAIL } from "../src/lib/session";
+import { STUB_USER_EMAIL, STUB_USER_PASSWORD } from "../src/lib/session";
+import { hashPassword } from "../src/lib/auth";
 
 const prisma = new PrismaClient();
 
@@ -40,6 +41,8 @@ async function clearExistingData() {
   await prisma.guest.deleteMany();
   await prisma.checklistItem.deleteMany();
   await prisma.budgetCategory.deleteMany();
+  await prisma.vendorBookingStatus.deleteMany();
+  await prisma.coupleProfile.deleteMany();
   await prisma.weddingMember.deleteMany();
   await prisma.weddingPlan.deleteMany();
   await prisma.accommodation.deleteMany();
@@ -198,7 +201,13 @@ async function seedAccommodations(vendors: Awaited<ReturnType<typeof seedVendors
 
 async function seedSampleWedding(vendors: Awaited<ReturnType<typeof seedVendors>>) {
   const user = await prisma.user.create({
-    data: { email: STUB_USER_EMAIL, name: "Ama Owusu" },
+    data: {
+      email: STUB_USER_EMAIL,
+      name: "Ama Owusu",
+      passwordHash: await hashPassword(STUB_USER_PASSWORD),
+      authProvider: "EMAIL",
+      emailVerified: true,
+    },
   });
 
   // Six months out — far enough that every checklist bucket (12mo down to
@@ -219,6 +228,53 @@ async function seedSampleWedding(vendors: Awaited<ReturnType<typeof seedVendors>
       ownerUserId: user.id,
       members: {
         create: { userId: user.id, role: "OWNER" },
+      },
+      // Demo data for the onboarding-driven dashboard personalization —
+      // shows what a couple who completed the full wizard would see.
+      coupleProfile: {
+        create: {
+          partner1Name: "Ama Owusu",
+          partner2Name: "Kwame Boateng",
+          displayName1: "Ama",
+          displayName2: "Kwame",
+          partner1Phone: "0244000000",
+          partner2Phone: "0244000001",
+          partner2Email: "kwame.boateng@example.com",
+          ceremonyDate: weddingDate,
+          venueName: "La Beach Gardens, Accra",
+          indoorOutdoor: "OUTDOOR",
+          weddingType: "MULTIPLE_CEREMONIES",
+          bridalPartySize: 6,
+          groomPartySize: 6,
+          budgetFlexibility: "SOMEWHAT_FLEXIBLE",
+          isDiaspora: false,
+          theme: "Garden Romance",
+          colorPalette: "Gold, Ivory, Forest Green",
+          dressCode: "Formal, with kente accents",
+          biggestConcern: "Coordinating both families' schedules for the traditional rites",
+          planningExperience: "FIRST_TIME",
+          diyVsProfessional: "A_MIX",
+          communicationStyle: "WEEKLY_CHECK_IN",
+          culturalReligiousRequirements: "Akan customary rites (knocking + engagement) before the white wedding",
+        },
+      },
+      vendorBookingStatuses: {
+        createMany: {
+          data: [
+            { category: "VENUE", status: "BOOKED" },
+            { category: "PHOTOGRAPHER", status: "RESEARCHING" },
+            { category: "VIDEOGRAPHER", status: "NOT_STARTED" },
+            { category: "CATERER", status: "RESEARCHING" },
+            { category: "DJ_BAND", status: "RESEARCHING" },
+            { category: "MC", status: "NOT_STARTED" },
+            { category: "DECOR", status: "NOT_STARTED" },
+            { category: "FLORIST", status: "NOT_STARTED" },
+            { category: "MAKEUP", status: "BOOKED" },
+            { category: "HAIR", status: "NOT_STARTED" },
+            { category: "CAKE", status: "NOT_STARTED" },
+            { category: "TRANSPORTATION", status: "NOT_STARTED" },
+          ],
+        },
       },
     },
   });
@@ -261,6 +317,7 @@ async function seedChecklist(weddingPlanId: string, weddingDate: Date) {
       category: item.category,
       dueDate: item.dueDate,
       isDefault: item.isDefault,
+      priority: item.priority,
       // Mark anything already due as done, so the seeded checklist shows
       // believable progress instead of either "0% done" or "already late."
       done: item.dueDate < now,

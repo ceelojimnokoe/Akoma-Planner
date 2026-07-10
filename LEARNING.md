@@ -978,3 +978,225 @@ stopping the dev server, not alongside it. This is a good general
 pattern to know for any dev-server-plus-build-tool setup: check whether
 "verify the production build" and "keep developing" can safely share
 state before assuming they can.
+
+---
+
+## 32. Task priority, dashboard charts, a free Accommodation tier, and a floating chat bubble
+
+**Chosen:** Added a `priority` field (LOW/MEDIUM/HIGH, default MEDIUM) to
+`ChecklistItem` — additive schema change, no data loss, every existing
+row just got the default. The Dashboard gained a "This week's focus"
+section (HIGH + not-done tasks, soonest due date first), donut-shaped
+progress meters on the Budget-spent and Checklist-progress stat cards,
+and a recommended-accommodation card. The Guest List gained a real
+RSVP-breakdown pie chart. Accommodation dropped its Pro gate entirely —
+free for every plan now, with a richer Pro version explicitly deferred
+rather than half-built. BisaAI gained a floating chat bubble, mounted
+once in `(app)/layout.tsx`, available on every app page.
+
+**Consulted the dataviz skill before writing any chart code, as its own
+trigger instructions require.** The single most useful thing it caught
+early: "budget spent vs total" and "checklist progress" are each *a
+single ratio against a limit* — the skill's own form-selection table
+calls that a **meter**, explicitly **not** "a pie of two slices." Built
+`ProgressRing.tsx` accordingly: one hue for the fill, the *same* hue at
+low opacity for the track (a real ramp, not a hue-vs-gray pairing), with
+the fill color shifting from green to terracotta if a ratio exceeds its
+limit (over budget). The guest RSVP breakdown, by contrast, genuinely is
+categorical/status data (three real states, not a single ratio), so it
+earned an actual multi-slice pie chart — deliberately colored with
+*status* tokens (accepted=good/green, pending=warning/gold,
+declined=serious/terracotta) rather than arbitrary categorical hues,
+matching the exact convention `GuestRow`'s badges already used, so the
+two views of the same data never disagree with each other.
+
+**A real hydration bug, caught by the same "click through it, don't just
+type-check it" discipline as every other checkpoint in this project:**
+the pie chart's first version used an SVG `<title>` child element inside
+each `<circle>` for a native hover tooltip. React threw a hydration
+mismatch the moment the page was actually loaded in a browser — `<title>`
+is one of a handful of tag names that exist in both the HTML and SVG
+namespaces, and something about how the browser's streaming HTML parser
+handles it inside an SVG subtree didn't match what React's hydration
+diffing expected. Fixed by dropping the `<title>` child entirely in
+favor of a plain `aria-label` attribute on the `<circle>` — no child
+element, no namespace ambiguity, and the chart's legend already shows
+every count as plain text, so the hover tooltip was a bonus, not
+something the accessibility requirement actually needed.
+
+**A second real bug, this one plain CSS, also only visible by actually
+looking at the rendered page:** the Budget-spent and Checklist-progress
+rings are the exact same `ProgressRing` component with the same fixed
+72px size — yet one rendered full-size and the other rendered almost
+invisibly small. Cause: `StatCard`'s layout is a flex row with no
+`min-width: 0` on the text block and no `flex-shrink: 0` on the ring.
+Flexbox's default behavior lets a child shrink below its content size
+unless told not to — the card whose text happened to be longer
+("GH₵45,000.00 / of GH₵120,000.00 (38%)" vs. "31% / 9 of 29 tasks done")
+squeezed its ring down to make room, purely as a side effect of string
+length in unrelated sibling content. Fixed with `min-w-0` (let the text
+truncate instead) and `shrink-0` (the ring never compresses). Neither
+bug was visible in the code — both only showed up once the page was
+actually rendered and clicked through, which is the entire reason this
+project has leaned on Playwright screenshots at every checkpoint instead
+of trusting `tsc`/`build` success alone.
+
+**Repeated the `next build`-while-`next dev`-is-running mistake from #31,
+immediately, and caught it myself this time.** Ran the production build
+to confirm route-level static/dynamic classification (habit from #28),
+forgetting the dev server from this session's Playwright testing was
+still up. Recognized the exact pattern from #31 before the user had to
+report broken styling again, and applied the same fix (stop dev server,
+`rm -rf .next`, restart clean) proactively. Worth being honest that
+writing the lesson down once didn't automatically prevent repeating the
+mistake — the fix is a habit (check `netstat`/process state before
+running a production build near a running dev server), not a one-time
+insight.
+
+## 33. Whole-cedi currency, and moving "add" forms to the top
+
+**Chosen:** Four small, purely presentational requests, all about where
+things live on the page rather than what the app can do. `formatGHS()`
+in `lib/currency.ts` now formats with `minimumFractionDigits: 0` /
+`maximumFractionDigits: 0` instead of always showing two decimal
+places — GH₵45,000 instead of GH₵45,000.00. Because every page in the
+app calls this one function for every money figure, it's a one-line
+change with a site-wide effect, which is exactly the payoff of having a
+single currency-formatting module instead of each page hand-rolling its
+own `.toFixed(2)`.
+
+The three "add a thing" forms — `AddBudgetCategoryForm`,
+`AddChecklistItemForm`, `AddGuestForm` — moved from the bottom of their
+page (after the table, inside the same card) to a dedicated card near
+the top, directly under the page's title and description. Each form's
+own root `className` used to carry `border-t border-akoma-ink/10 pt-4`
+— a divider line assuming it was sitting *underneath* a table in the
+same card. Moving it into its own standalone card meant that divider
+was now a border floating above nothing, so it came out of all three
+components, not just the page layout. This is the same lesson as always
+with shared components used in exactly one place: their styling is
+allowed to assume where they'll be mounted, but that assumption has to
+move with them.
+
+Guest List's form specifically had to land *between* the RSVP
+stats/pie-chart row and the guest table — "under the breakdown, above
+the list" — rather than at the very top like Budget's and Checklist's,
+since the request was explicit that the breakdown numbers should still
+be the first thing seen.
+
+**The animated budget progress bar is a second meter, this time a bar
+instead of a ring — same "one ratio against a limit" shape as
+`ProgressRing` (see #32), just horizontal so it can run the full card
+width instead of sitting beside a number.** Built `BudgetProgressBar.tsx`
+as a client component for one specific reason: a CSS `transition` only
+plays when a value *changes* after paint, not on whatever value is
+already there on first render. So the component renders at `width: 0%`
+on the first pass, then a `useEffect` (via `requestAnimationFrame`, so
+the 0% frame actually paints before the transition starts) sets the
+real percent — the resulting one-frame jump from 0 to the true value is
+what makes it visibly "grow in" on page load. Reuses the exact same
+green→terracotta over-budget tone logic as the dashboard's ring, so the
+two views of the same number never disagree.
+
+Verified all three pages with real Playwright screenshots (not just
+`tsc`/lint) specifically to check for two things a type checker can't
+see: that no `GH₵…\.\d+` pattern survived anywhere in the rendered page,
+and that the moved forms actually landed in the right visual position
+relative to their siblings — both confirmed correct.
+
+## 34. Real accounts: a lightweight cookie session, not a localStorage side-channel
+
+**Chosen:** Replaced the fully-hardcoded stub session with a real, working
+(but deliberately not hardened) account layer. `src/lib/auth.ts` adds
+`hashPassword`/`verifyPassword` via Node's built-in `crypto.scrypt` — real
+password hashing, zero new dependencies — plus a plain `httpOnly` cookie
+holding a user id (`createSession`/`destroySession`/`getSessionUserId`).
+`getCurrentUser()` in `lib/session.ts` now checks that cookie first and
+**falls back to the original seeded stub** if there isn't one — the exact
+"additive" path LEARNING.md #5 said this would eventually take. This was
+the load-bearing decision of the whole feature: every existing page
+already reads the current user/wedding plan through `getCurrentUser()`/
+`getCurrentWeddingPlan()`, so a real cookie session slots in underneath
+all of them for free, while the seeded demo account keeps working with
+zero setup exactly as before.
+
+**Deliberately still fake, and labelled as such:** email verification (no
+email is sent — `/verify-email` is a static "check your inbox" plus a
+demo-only button that just flips `User.emailVerified`), forgot-password
+(`/forgot-password` shows a static success message, no email, no backend
+call at all), and all four social-login buttons (`SocialLoginButtons.tsx`)
+are real, visibly disabled `<button>` elements with a "Soon" badge — not
+silently non-functional. The session cookie itself is unsigned/
+unencrypted, which is fine for a local dev demo but explicitly commented
+as needing a real session library (NextAuth/JWT) before any real
+deployment.
+
+**New satellite tables, not a bloated `WeddingPlan`:** the ~45-field
+onboarding wizard needed somewhere to live. Rather than add 30+ nullable
+columns to `WeddingPlan` (which nothing existing expects and which every
+`weddingPlan.coupleNames`-style read would have to keep ignoring), it's a
+new 1:1 `CoupleProfile` model, plus a `VendorBookingStatus` table (one row
+per category per wedding). `VendorBookingStatus` deliberately uses its
+own `OnboardingVendorCategory` enum (12 categories: Venue, Photographer,
+Videographer, Caterer, DJ/Band, MC, Decor, Florist, Makeup, Hair, Cake,
+Transportation) instead of reusing the real Vendor catalog's
+`VendorCategory` enum (10 categories, no Videographer/DJ/MC/Florist/Hair
+split) — that enum drives actual seeded vendor listings, and bending it to
+fit a self-reported onboarding checklist would have rippled through a
+feature this request never touched.
+
+**The Currency field became a diaspora flag instead — asked the user
+first, didn't just decide.** The onboarding spec listed a "Currency"
+question, but the project has stood on a GHS-only rule since the original
+build. Rather than quietly pick a side, this went to the user directly:
+keep GHS-only and add an `isDiaspora` checkbox ("planning this wedding
+from abroad") that captures the real underlying need without reopening
+`lib/currency.ts`, the budget page, or PDF exports.
+
+**Dashboard personalization stayed intentionally bounded.** "Theme and
+colors should personalize the dashboard" could have meant re-skinning the
+whole app per-couple — instead, `WeddingStyleCard.tsx` just *displays*
+the couple's theme/dress-code/palette as text and small swatches. The
+five `akoma-*` brand colors stay exactly where they are: they're
+load-bearing everywhere, including the dataviz-skill-validated chart
+palette on this very page (see #32). Actually re-theming the UI per
+couple is a real, separate feature, not a checkbox inside this one.
+
+**A genuinely new UI layer this feature needed: `Input`/`Select`/
+`Textarea`/`Field` in `components/ui/`.** Every prior form in the
+codebase (`AddGuestForm`, `AddBudgetCategoryForm`, the old
+`OnboardingForm`) copy-pasted the same Tailwind class string per
+`<input>`. That was fine at 6 fields; at ~45 fields across a 9-step
+wizard plus a matching `/profile` edit form, it stopped being fine.
+Older forms were deliberately left untouched — not worth the churn of
+retrofitting working code just to use the new primitive.
+
+**A real, if odd, TypeScript inference gap:** a generic
+`optionalEnum(values)` helper built on `z.union([z.literal(""),
+z.enum(values)]).optional()` kept losing its literal types somewhere
+in the zod→Prisma pipeline — Prisma's `create()` calls reported
+`indoorOutdoor` etc. as plain `string`, not the narrow enum union, even
+though the zod schema was written to produce literals. Chased it for a
+few minutes, then took the reliable path instead of the elegant one:
+explicit `as IndoorOutdoor | undefined`-style casts (importing the six
+real Prisma enum types) at each of the dozen call sites in
+`server/actions/wedding.ts` and `server/actions/profile.ts`. Correct and
+boring beats chasing a generic-inference rabbit hole in code nobody else
+will read closely.
+
+**One cosmetic, non-blocking hydration warning, investigated and ruled
+out as a real bug, not silently ignored.** Driving `/profile` through
+Playwright logged a React hydration warning about a `style={{caret-color:
+"transparent"}}` attribute appearing on every `<input>` that the server
+didn't render. None of this project's code sets a `style` prop anywhere
+near these inputs (`Input.tsx` only sets `className`). Confirmed it
+wasn't a real bug by loading `/guests` — an older, untouched form with
+the same raw-`<input>` pattern — through the identical Playwright setup:
+zero hydration warnings there. The difference is that `/profile`'s
+inputs arrive server-pre-filled with real values (name/email/tel-typed
+fields with actual data), which is exactly the situation Chromium's
+autofill-preview styling targets — a browser-injected attribute, not
+anything this app's code produced. Documented rather than "fixed," since
+there's no code change that would address a browser feature, and
+disabling autofill site-wide to silence a testing-only artifact would
+cost real users a real convenience.
