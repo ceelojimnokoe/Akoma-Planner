@@ -10,7 +10,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { canAddGuest } from "@/lib/plan";
+import { canAddGuest, FREE_LIMITS } from "@/lib/plan";
 
 const addGuestSchema = z.object({
   weddingPlanId: z.string().min(1),
@@ -62,4 +62,62 @@ export async function deleteGuest(id: string): Promise<{ ok: boolean }> {
   revalidatePath("/guests");
   revalidatePath("/dashboard");
   return { ok: true };
+}
+
+const importedGuestSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  side: z.enum(["BRIDE", "GROOM", "BOTH"]),
+  rsvpStatus: z.enum(["PENDING", "YES", "NO"]),
+  contact: z.string().trim().max(50).optional().or(z.literal("")),
+});
+
+export interface ImportedGuestRow {
+  name: string;
+  side: "BRIDE" | "GROOM" | "BOTH";
+  rsvpStatus: "PENDING" | "YES" | "NO";
+  contact?: string;
+}
+
+export interface ImportGuestsResult {
+  ok: boolean;
+  imported: number;
+  skipped: number;
+  error?: string;
+}
+
+/**
+ * Bulk-inserts guests parsed client-side from an uploaded spreadsheet (see
+ * ImportGuestsModal.tsx — parsing happens in the browser, this action just
+ * validates and writes). Respects the same Free-plan guest cap as
+ * addGuest(): if the import would push past the cap, it imports as many
+ * as fit and reports the rest as skipped rather than failing outright.
+ */
+export async function importGuests(weddingPlanId: string, rows: ImportedGuestRow[]): Promise<ImportGuestsResult> {
+  const validRows = rows.filter((row) => importedGuestSchema.safeParse(row).success);
+  if (validRows.length === 0) {
+    return { ok: false, imported: 0, skipped: rows.length, error: "No valid rows to import." };
+  }
+
+  const weddingPlan = await prisma.weddingPlan.findUniqueOrThrow({ where: { id: weddingPlanId } });
+  const existingCount = await prisma.guest.count({ where: { weddingPlanId } });
+
+  const room = weddingPlan.plan === "PRO" ? validRows.length : Math.max(0, FREE_LIMITS.maxGuests - existingCount);
+  const toImport = validRows.slice(0, room);
+  const skipped = rows.length - toImport.length;
+
+  if (toImport.length > 0) {
+    await prisma.guest.createMany({
+      data: toImport.map((row) => ({
+        weddingPlanId,
+        name: row.name,
+        side: row.side,
+        rsvpStatus: row.rsvpStatus,
+        contact: row.contact || null,
+      })),
+    });
+  }
+
+  revalidatePath("/guests");
+  revalidatePath("/dashboard");
+  return { ok: true, imported: toImport.length, skipped };
 }

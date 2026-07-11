@@ -10,6 +10,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { daysUntil, formatDate } from "@/lib/dates";
+import { calculateGuestStats } from "@/lib/guests";
 import { Badge } from "@/components/ui/Badge";
 
 export default async function SharedWeddingPage({ params }: { params: Promise<{ shareToken: string }> }) {
@@ -24,7 +25,7 @@ export default async function SharedWeddingPage({ params }: { params: Promise<{ 
 
   const doneCount = checklistItems.filter((i) => i.done).length;
   const checklistPercent = checklistItems.length ? Math.round((doneCount / checklistItems.length) * 100) : 0;
-  const confirmedGuests = guests.filter((g) => g.rsvpStatus === "YES").length;
+  const { confirmedAttendees } = calculateGuestStats(guests);
   const days = daysUntil(weddingPlan.weddingDate);
 
   return (
@@ -40,7 +41,7 @@ export default async function SharedWeddingPage({ params }: { params: Promise<{ 
 
         <div className="mt-8 grid grid-cols-3 gap-4 border-t border-akoma-ink/10 pt-6">
           <Stat label="Countdown" value={days >= 0 ? `${days}d` : "🎉"} />
-          <Stat label="Guests confirmed" value={String(confirmedGuests)} />
+          <Stat label="Guests confirmed" value={String(confirmedAttendees)} />
           <Stat label="Planning progress" value={`${checklistPercent}%`} />
         </div>
 

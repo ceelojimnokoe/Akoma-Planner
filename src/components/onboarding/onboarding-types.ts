@@ -44,7 +44,8 @@ export interface OnboardingFormData {
 
   // Wedding style
   theme: string;
-  colorPalette: string;
+  primaryColor: string;
+  secondaryColor: string;
   dressCode: string;
   visionNotes: string;
   pinterestUrl: string;
@@ -101,7 +102,11 @@ export function emptyOnboardingForm(prefillName?: string): OnboardingFormData {
     isDiaspora: false,
 
     theme: "",
-    colorPalette: "",
+    // Pre-filled with the first preset's primary (see lib/wedding-palettes.ts)
+    // so the picker never opens on a jarring default black — the couple can
+    // still change it freely, this is just a friendlier starting point.
+    primaryColor: "#87A96B",
+    secondaryColor: "",
     dressCode: "",
     visionNotes: "",
     pinterestUrl: "",

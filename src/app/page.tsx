@@ -1,14 +1,19 @@
 // src/app/page.tsx
 //
-// Public marketing landing page — the first thing an unauthenticated
-// visitor sees. Static content only (no data fetching), describing what
-// the product actually does. No feature claims here should overstate what
-// exists elsewhere in the app; the safety commitments section in
-// particular has to stay accurate as features get built.
+// Public marketing landing page — the first thing a visitor sees, whether
+// or not they're signed in. Mostly static, but the nav/hero CTAs are
+// session-aware: getCurrentUser() always resolves to *someone* (falls
+// back to the seeded stub — see lib/session.ts), so "signed in" here
+// specifically means "a real session cookie exists," checked directly via
+// getSessionUserId() rather than getCurrentUser(). No feature claims here
+// should overstate what exists elsewhere in the app; the safety
+// commitments section in particular has to stay accurate as features get
+// built.
 
 import { LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { getSessionUserId } from "@/lib/auth";
 
 const FEATURES = [
   {
@@ -37,7 +42,9 @@ const FEATURES = [
   },
 ];
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const isSignedIn = (await getSessionUserId()) !== null;
+
   return (
     <div className="min-h-screen">
       <header className="border-b border-akoma-ink/10">
@@ -49,9 +56,20 @@ export default function LandingPage() {
             <LinkButton href="/pricing" variant="ghost" size="sm">
               Pricing
             </LinkButton>
-            <LinkButton href="/signup" variant="primary" size="sm">
-              Get Started
-            </LinkButton>
+            {isSignedIn ? (
+              <LinkButton href="/dashboard" variant="primary" size="sm">
+                Go to Dashboard
+              </LinkButton>
+            ) : (
+              <>
+                <LinkButton href="/login" variant="ghost" size="sm">
+                  Log in
+                </LinkButton>
+                <LinkButton href="/signup" variant="primary" size="sm">
+                  Get Started
+                </LinkButton>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -70,9 +88,15 @@ export default function LandingPage() {
             way. Nothing gets sent or booked without you.
           </p>
           <div className="mt-8 flex justify-center gap-3">
-            <LinkButton href="/signup" size="lg">
-              Start Planning — Free
-            </LinkButton>
+            {isSignedIn ? (
+              <LinkButton href="/dashboard" size="lg">
+                Go to Dashboard
+              </LinkButton>
+            ) : (
+              <LinkButton href="/signup" size="lg">
+                Start Planning — Free
+              </LinkButton>
+            )}
             <LinkButton href="/pricing" variant="ghost" size="lg">
               See Pro Features
             </LinkButton>

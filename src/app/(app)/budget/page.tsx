@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/Card";
 import { BudgetCategoryRow } from "@/components/budget/BudgetCategoryRow";
 import { AddBudgetCategoryForm } from "@/components/budget/AddBudgetCategoryForm";
 import { BudgetProgressBar } from "@/components/budget/BudgetProgressBar";
+import { BudgetAlertWatcher } from "@/components/budget/BudgetAlertWatcher";
 
 export default async function BudgetPage() {
   const weddingPlan = await getCurrentWeddingPlan();
@@ -31,6 +32,8 @@ export default async function BudgetPage() {
           Every figure here is in GHS and editable — this is your working budget, not a locked estimate.
         </p>
       </div>
+
+      <BudgetAlertWatcher weddingPlanId={weddingPlan!.id} percentSpent={summary.percentSpent} />
 
       <Card>
         <AddBudgetCategoryForm weddingPlanId={weddingPlan!.id} />

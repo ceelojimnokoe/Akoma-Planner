@@ -18,6 +18,7 @@ import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
+import { ColorPaletteField } from "@/components/onboarding/ColorPaletteField";
 
 type FormState = {
   [K in keyof CoupleProfileInput]: CoupleProfileInput[K] extends boolean | undefined ? boolean : string;
@@ -42,7 +43,8 @@ function toFormState(profile: CoupleProfile | null): FormState {
     budgetFlexibility: profile?.budgetFlexibility ?? "",
     isDiaspora: profile?.isDiaspora ?? false,
     theme: profile?.theme ?? "",
-    colorPalette: profile?.colorPalette ?? "",
+    primaryColor: profile?.primaryColor ?? "",
+    secondaryColor: profile?.secondaryColor ?? "",
     dressCode: profile?.dressCode ?? "",
     visionNotes: profile?.visionNotes ?? "",
     pinterestUrl: profile?.pinterestUrl ?? "",
@@ -191,9 +193,12 @@ export function ProfileForm({ profile }: { profile: CoupleProfile | null }) {
               <Input value={form.dressCode} onChange={(e) => update("dressCode", e.target.value)} />
             </Field>
           </div>
-          <Field label="Color palette">
-            <Input value={form.colorPalette} onChange={(e) => update("colorPalette", e.target.value)} />
-          </Field>
+          <ColorPaletteField
+            primaryColor={form.primaryColor}
+            secondaryColor={form.secondaryColor}
+            onPrimaryChange={(hex) => update("primaryColor", hex)}
+            onSecondaryChange={(hex) => update("secondaryColor", hex)}
+          />
           <Field label="Vision or inspiration">
             <Textarea value={form.visionNotes} onChange={(e) => update("visionNotes", e.target.value)} />
           </Field>

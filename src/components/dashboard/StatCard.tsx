@@ -11,6 +11,7 @@
 
 import { Card } from "@/components/ui/Card";
 import { ProgressRing } from "@/components/dashboard/ProgressRing";
+import type { BudgetTone } from "@/lib/budget-tone";
 
 export function StatCard({
   label,
@@ -21,7 +22,7 @@ export function StatCard({
   label: string;
   value: string;
   subtext?: string;
-  ring?: { percent: number; tone?: "green" | "terracotta" };
+  ring?: { percent: number; tone?: BudgetTone };
 }) {
   return (
     <Card className="flex items-center justify-between gap-3">

@@ -6,26 +6,23 @@
 // dataviz-skill-validated chart palette on this same dashboard; re-theming
 // the whole UI per-couple is a separate, much bigger feature.
 //
-// colorPalette is free text (e.g. "Gold, Ivory, Forest Green"), not hex
-// codes — each word is tried directly as a CSS color keyword for the
-// swatch dot. Most common color names are valid CSS keywords once
-// lowercased with spaces removed ("Forest Green" -> "forestgreen"); if a
-// word isn't recognized, the browser just renders no fill, which degrades
-// harmlessly instead of erroring.
+// primaryColor/secondaryColor are real hex strings chosen via a color
+// picker or preset (see lib/wedding-palettes.ts) — rendered directly as
+// swatches, no free-text color-name guessing needed.
 
 import { Card } from "@/components/ui/Card";
 
 export function WeddingStyleCard({
   theme,
-  colorPalette,
+  primaryColor,
+  secondaryColor,
   dressCode,
 }: {
   theme: string | null;
-  colorPalette: string | null;
+  primaryColor: string | null;
+  secondaryColor: string | null;
   dressCode: string | null;
 }) {
-  const colors = colorPalette ? colorPalette.split(",").map((c) => c.trim()).filter(Boolean) : [];
-
   return (
     <Card>
       <h2 className="mb-3 font-semibold text-akoma-ink">Your wedding style</h2>
@@ -42,18 +39,22 @@ export function WeddingStyleCard({
             <dd className="text-akoma-ink">{dressCode}</dd>
           </div>
         )}
-        {colors.length > 0 && (
+        {primaryColor && (
           <div className="flex items-center justify-between">
             <dt className="text-akoma-ink/50">Palette</dt>
             <dd className="flex items-center gap-1.5">
-              {colors.map((c) => (
+              <span
+                title={primaryColor}
+                className="h-4 w-4 rounded-full border border-akoma-ink/15"
+                style={{ backgroundColor: primaryColor }}
+              />
+              {secondaryColor && (
                 <span
-                  key={c}
-                  title={c}
+                  title={secondaryColor}
                   className="h-4 w-4 rounded-full border border-akoma-ink/15"
-                  style={{ backgroundColor: c.toLowerCase().replace(/\s+/g, "") }}
+                  style={{ backgroundColor: secondaryColor }}
                 />
-              ))}
+              )}
             </dd>
           </div>
         )}

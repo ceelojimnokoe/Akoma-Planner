@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentWeddingPlan } from "@/lib/session";
 import { coupleProfileSchema, type CoupleProfileInput } from "@/lib/validation/profile";
 import { orUndefined, dateOrUndefined } from "@/lib/form-shaping";
+import { createNotification } from "@/lib/notifications";
 import type {
   IndoorOutdoor,
   WeddingType,
@@ -60,7 +61,8 @@ export async function updateCoupleProfile(rawInput: CoupleProfileInput): Promise
     budgetFlexibility: orUndefined(input.budgetFlexibility) as BudgetFlexibility | undefined,
     isDiaspora: input.isDiaspora ?? false,
     theme: orUndefined(input.theme),
-    colorPalette: orUndefined(input.colorPalette),
+    primaryColor: orUndefined(input.primaryColor),
+    secondaryColor: orUndefined(input.secondaryColor),
     dressCode: orUndefined(input.dressCode),
     visionNotes: orUndefined(input.visionNotes),
     pinterestUrl: orUndefined(input.pinterestUrl),
@@ -82,6 +84,18 @@ export async function updateCoupleProfile(rawInput: CoupleProfileInput): Promise
     where: { weddingPlanId: weddingPlan.id },
     create: { weddingPlanId: weddingPlan.id, ...data },
     update: data,
+  });
+
+  // A unique key per call (not a fixed one like the state-derived
+  // notifications use) — every edit is its own event and should show up
+  // as a fresh unread notification, not silently coalesce into one
+  // permanent row the way a re-synced fact would.
+  await createNotification({
+    weddingPlanId: weddingPlan.id,
+    key: `profile-updated-${Date.now()}`,
+    type: "SYSTEM",
+    message: "Your profile was updated successfully.",
+    actionHref: "/profile",
   });
 
   revalidatePath("/profile");

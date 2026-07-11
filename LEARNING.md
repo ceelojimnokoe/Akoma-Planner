@@ -1200,3 +1200,145 @@ anything this app's code produced. Documented rather than "fixed," since
 there's no code change that would address a browser feature, and
 disabling autofill site-wide to silence a testing-only artifact would
 cost real users a real convenience.
+
+## 35. Nine polish items, a rejected dependency, and two bugs only a screenshot caught
+
+**Chosen:** A single large batch — profile pictures, sign-out moved to the
+sidebar footer, a real color picker replacing free-text wedding colors,
+a pricing-page visual bug, session-aware homepage nav, Pro badges hiding
+once already on Pro, three-tier budget color coding with non-blocking
+toast alerts, guest-list Excel import, and a scoped mobile-nav/
+empty-state/loading-skeleton pass. Full detail lives in the individual
+files' own comments; this entry is about the four decisions and two bugs
+worth remembering.
+
+**Rejected the obvious dependency for Excel import.** `npm install xlsx`
+(SheetJS) installed clean, then `npm audit` immediately flagged it:
+high-severity Prototype Pollution and a ReDoS advisory, both "No fix
+available" — SheetJS stopped shipping security patches to the npm
+registry and only patches their own CDN-hosted tarball now. Uninstalled
+it and used `read-excel-file` instead (zero new vulnerabilities per
+`npm audit`, confirmed by diffing the vulnerability list before/after).
+Worth remembering: "it installed and the types looked right" is not the
+same check as "it's safe to ship" — `npm audit` after every new install,
+not just after `npm install` finishes without erroring.
+
+**Avatar storage: real local files, not base64-in-the-database.** A new
+route handler (`src/app/api/upload/avatar/route.ts`) writes uploads to
+`public/uploads/avatars/`, validates MIME type against an allow-list, and
+generates the filename entirely server-side from the signed-in user's id
+— the client's original filename is never used in the path, so there's
+no path-traversal surface. Explicitly commented (and here) that this is
+local-disk storage for the MVP: most production hosts have an ephemeral
+filesystem, so a real deployment needs S3/Cloudinary/Vercel Blob instead,
+storing just the resulting URL exactly as this route already does — the
+swap point is one file, same shape as the Paystack/Hubtel swap point in
+`billing.ts`.
+
+**The "Currency" field's replacement got reused as a real schema
+migration, not just left as a decoration.** The color-picker request
+meant `CoupleProfile.colorPalette` (free text, parsed as CSS color
+keywords for the dashboard swatch) was being fully replaced by real
+`primaryColor`/`secondaryColor` hex fields. Rather than leave the old
+column around unused "just in case," it was dropped from the schema —
+its only two call sites were both being rewritten in the same change, so
+keeping it would have been exactly the kind of dead field the project's
+own rule says to delete rather than deprecate-in-place.
+
+**A budget-tone reuse, not a new color.** The three-tier budget coloring
+(green/gold/terracotta at 0–60/61–80/81%+) needed a "warning" middle
+tone. `akoma-gold` already reads as amber/caution everywhere else in the
+app (the RSVP pie chart's Pending segment, priority badges) — reusing it
+via one new `lib/budget-tone.ts` module, consumed by `ProgressRing`,
+`BudgetProgressBar`, and the dashboard stat card, meant zero new design
+tokens and zero risk of the three views disagreeing with each other.
+
+**Two real bugs, both invisible to any text-based check, both only found
+by actually looking at a screenshot:**
+
+1. The pricing page's "Most Popular" badge looked like a z-index bug
+   (badge behind the card's border) but wasn't — `Badge`'s "gold" tone is
+   a *translucent* `bg-akoma-gold/15`, which let the card's solid 2px
+   border show through wherever the pill straddled it. No z-index value
+   would have fixed a transparency problem. Fixed with a one-off solid
+   pill instead of the shared `Badge` component, which also sidestepped
+   the Tailwind class-override-order footgun documented back in the
+   FloatingChatBubble/MockBadge decision — fighting a tone's own
+   background class via a later `className` is exactly the trap that
+   comment warned about.
+2. The new budget-alert toast (top-right, `ToastProvider.tsx`) rendered
+   directly on top of the TopBar's "Upgrade to Pro" button — invisible to
+   any `textContent`-based test, since the text was still "on the page,"
+   just visually overlapping. Caught only by reading the actual
+   screenshot pixel-for-pixel. A second, related bug surfaced the same
+   way: on mobile, the same toast and the new nav drawer are both
+   `position: fixed` overlays that can be open simultaneously, and since
+   the toast mounts later in the JSX tree, it painted on top of the
+   drawer at an equal `z-50`. Fixed by giving the drawer a higher
+   `z-[60]` — an explicit user action (opening the nav) should win over a
+   passive background notification — and by making the toast's width
+   responsive so it doesn't overflow a narrow viewport either. Neither
+   bug would have been caught by the Playwright *assertions* in this
+   checkpoint's own verification script, which both technically passed;
+   only looking at the rendered screenshots caught them, which is exactly
+   why this project has leaned on screenshots over trusting scripted
+   checks alone since LEARNING.md's very first checkpoints.
+
+## 36. A real notification table, and a bug that was hiding in six places at once
+
+**Chosen:** A guest-confirmed donut on the dashboard, a real in-app
+notification system (bell + dropdown, unread count, mark-as-read), and —
+the actual root-cause fix — centralizing "how many people is that,
+really?" into one function everything else calls.
+
+**The `+1` bug was never really one bug — it was the same bug hand-rolled
+six times.** `guests.length` / `guests.filter(...).length` was
+independently re-derived in the dashboard, the guest-list page, the
+public share page, the full-report PDF export, and
+`seatingSuggestions()` in `lib/bisaai.ts` — every single one counting
+guest *rows*, never attendees, even though `Guest.plusOne` had existed in
+the schema since the very first guest-list checkpoint. This is the
+pattern worth remembering, not the specific fix: when a "simple" fact
+(a count) is worth computing more than once, it's worth computing in
+exactly one place — `lib/guests.ts`'s `calculateGuestStats()` now, so
+the next new feature that needs a guest count reads from there by
+construction instead of writing a seventh copy of `.filter(...).length`.
+`seatingSuggestions()` was the one non-obvious casualty: it chunked
+guests into tables by *row* count, so a "table of 10" could silently seat
+13+ once +1s were counted — fixed with a small greedy bin-pack that
+tracks seats, not rows.
+
+**The Free-plan guest cap deliberately did NOT move to attendee counts.**
+`FREE_LIMITS.maxGuests` counts *rows* — that's a business rule about how
+many guest entries a Free account may create, not a statement about
+headcount. Every *display* number switched to attendees; the *cap*
+stayed exactly where it was. Worth being explicit about this distinction
+in the code (see `lib/guests.ts`'s comment) since it's the kind of thing
+a future refactor could accidentally "fix" into a real bug.
+
+**Notifications are a real table, not computed-on-render — because
+"mark as read" has to actually mean something.** The request's own
+examples split into two genuinely different kinds: state-derived facts
+("you're at 82% of budget," "12 pending RSVPs" — always re-derivable from
+current data) and one-off events ("welcome to Akoma Planner," "your
+profile was updated" — true only at the instant they happened, never
+re-derivable afterward). A pure computed-list-on-every-render approach
+handles the first kind fine and can't represent the second kind at all;
+persisting nothing and computing everything fresh would also mean
+"unread" resets on every page load, which isn't "mark as read," it's
+theater. The schema's `@@unique([weddingPlanId, key])` is what lets one
+function (`createNotification()`) safely serve both: state-derived
+notifications upsert against a stable semantic key (`"budget-over"`,
+`"vendor-PHOTOGRAPHER-not-booked"`) so re-syncing refreshes the message
+without duplicating the row or resetting `isRead`; event-based ones use
+a key that's unique per call (`` `profile-updated-${Date.now()}` ``) so
+each real event is genuinely its own new unread row instead of silently
+overwriting the last one.
+
+**`createNotification()` is the seam, not a build-it-later TODO scattered
+across five files.** Every write — computed or event-based — goes
+through one function. A future email/WhatsApp/Telegram/push/SMS
+integration has exactly one place to add a dispatch call, the same
+"swap seam" shape as `lib/bisaai.ts`'s real-AI-provider TODOs and
+`billing.ts`'s real-payment-provider TODO — documented in the schema
+comment, not built, since no channel was actually asked for yet.

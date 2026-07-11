@@ -16,6 +16,10 @@ build/
 prisma/dev.db
 prisma/dev.db-journal
 
+# user-uploaded content (avatars, etc.) — local-disk storage for the MVP,
+# see src/app/api/upload/avatar/route.ts
+public/uploads/
+
 # testing / coverage
 coverage/
 

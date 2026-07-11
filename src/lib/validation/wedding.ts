@@ -22,6 +22,11 @@ function optionalEnum<T extends [string, ...string[]]>(values: T) {
   return z.union([z.literal(""), z.enum(values)]).optional();
 }
 
+// Native <input type="color"> always sends a 6-digit hex value, so this
+// only rejects genuinely malformed input, not "no color chosen" — that
+// case is just "" (the field left untouched / cleared).
+const optionalHexColor = z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/, "Enter a valid color")]).optional();
+
 export const onboardingSchema = z.object({
   // --- Wedding Details (core — maps onto WeddingPlan, required) ---
   coupleNames: z.string().trim().min(2, 'Enter both names, e.g. "Ama & Kwame"').max(100),
@@ -57,7 +62,8 @@ export const onboardingSchema = z.object({
 
   // --- Wedding style ---
   theme: optionalText(100),
-  colorPalette: optionalText(150),
+  primaryColor: optionalHexColor,
+  secondaryColor: optionalHexColor,
   dressCode: optionalText(100),
   visionNotes: optionalText(1000),
   pinterestUrl: z.union([z.literal(""), z.string().trim().url("Enter a valid URL")]).optional(),

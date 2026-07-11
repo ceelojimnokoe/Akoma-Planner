@@ -5,17 +5,21 @@
 // single ratio against a limit is a METER, not a two-slice pie — so
 // this is one hue for the filled arc, and the SAME hue at low opacity
 // for the unfilled track (a "lighter step of the same ramp"), never two
-// unrelated colors. `tone` lets the fill shift from green to terracotta
-// when a ratio has gone past its limit (e.g. over budget) — the same
-// "accent -> danger" idea the skill describes for meters.
+// unrelated colors. `tone` (see lib/budget-tone.ts) lets the fill shift
+// green -> gold -> terracotta as a ratio climbs toward/past its limit
+// (e.g. budget spent) — the same "accent -> caution -> danger" idea the
+// skill describes for meters.
+
+import type { BudgetTone } from "@/lib/budget-tone";
 
 const SIZE = 72;
 const STROKE_WIDTH = 8;
 const RADIUS = (SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-const TONE_HEX: Record<"green" | "terracotta", string> = {
+const TONE_HEX: Record<BudgetTone, string> = {
   green: "#0B6E4F",
+  gold: "#D4A017",
   terracotta: "#C1502E",
 };
 
@@ -27,7 +31,7 @@ export function ProgressRing({
    *  100%, but the tone shift plus the number in the center still tell
    *  the true story. */
   percent: number;
-  tone?: "green" | "terracotta";
+  tone?: BudgetTone;
 }) {
   const clamped = Math.max(0, Math.min(100, percent));
   const dashOffset = CIRCUMFERENCE * (1 - clamped / 100);

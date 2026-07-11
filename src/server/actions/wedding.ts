@@ -16,6 +16,7 @@ import { onboardingSchema, type OnboardingInput } from "@/lib/validation/wedding
 import { buildDefaultChecklist } from "@/lib/checklist-defaults";
 import { buildDefaultBudgetCategories } from "@/lib/budget-defaults";
 import { orUndefined, dateOrUndefined } from "@/lib/form-shaping";
+import { createNotification } from "@/lib/notifications";
 import type {
   OnboardingVendorCategory,
   IndoorOutdoor,
@@ -94,7 +95,8 @@ export async function createWeddingPlan(rawInput: OnboardingInput): Promise<Crea
           budgetFlexibility: orUndefined(input.budgetFlexibility) as BudgetFlexibility | undefined,
           isDiaspora: input.isDiaspora ?? false,
           theme: orUndefined(input.theme),
-          colorPalette: orUndefined(input.colorPalette),
+          primaryColor: orUndefined(input.primaryColor),
+          secondaryColor: orUndefined(input.secondaryColor),
           dressCode: orUndefined(input.dressCode),
           visionNotes: orUndefined(input.visionNotes),
           pinterestUrl: orUndefined(input.pinterestUrl),
@@ -121,6 +123,14 @@ export async function createWeddingPlan(rawInput: OnboardingInput): Promise<Crea
         },
       },
     },
+  });
+
+  await createNotification({
+    weddingPlanId: weddingPlan.id,
+    key: "welcome",
+    type: "SYSTEM",
+    message: "Welcome to Akoma Planner! Your wedding dashboard is ready.",
+    actionHref: "/dashboard",
   });
 
   redirect(`/dashboard?welcome=1&weddingPlanId=${weddingPlan.id}`);

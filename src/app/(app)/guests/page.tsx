@@ -7,11 +7,13 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentWeddingPlan } from "@/lib/session";
 import { FREE_LIMITS } from "@/lib/plan";
+import { calculateGuestStats } from "@/lib/guests";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Card } from "@/components/ui/Card";
 import { GuestRow } from "@/components/guests/GuestRow";
 import { AddGuestForm } from "@/components/guests/AddGuestForm";
 import { RsvpPieChart } from "@/components/guests/RsvpPieChart";
+import { ImportGuestsModal } from "@/components/guests/ImportGuestsModal";
 
 export default async function GuestsPage() {
   const weddingPlan = await getCurrentWeddingPlan();
@@ -20,11 +22,14 @@ export default async function GuestsPage() {
     orderBy: [{ side: "asc" }, { name: "asc" }],
   });
 
-  const confirmed = guests.filter((g) => g.rsvpStatus === "YES").length;
-  const pending = guests.filter((g) => g.rsvpStatus === "PENDING").length;
-  const declined = guests.filter((g) => g.rsvpStatus === "NO").length;
+  const stats = calculateGuestStats(guests);
+  // The Free-plan cap is on guest *rows*, not attendee headcount — see
+  // lib/guests.ts — so this stays on totalRecords even though every stat
+  // card below is attendee-based.
   const capLabel =
-    weddingPlan!.plan === "FREE" ? `${guests.length} of ${FREE_LIMITS.maxGuests} (Free plan)` : `${guests.length} (unlimited on Pro)`;
+    weddingPlan!.plan === "FREE"
+      ? `${stats.totalRecords} of ${FREE_LIMITS.maxGuests} (Free plan)`
+      : `${stats.totalRecords} (unlimited on Pro)`;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -37,18 +42,26 @@ export default async function GuestsPage() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="grid grid-cols-2 gap-4 lg:col-span-2">
-          <StatCard label="Total guests" value={String(guests.length)} />
-          <StatCard label="Confirmed" value={String(confirmed)} />
-          <StatCard label="Pending" value={String(pending)} />
-          <StatCard label="Declined" value={String(declined)} />
+          <StatCard
+            label="Total guests"
+            value={String(stats.totalAttendees)}
+            subtext={`${stats.totalRecords} guest record${stats.totalRecords === 1 ? "" : "s"}, incl. +1s`}
+          />
+          <StatCard label="Confirmed" value={String(stats.confirmedAttendees)} />
+          <StatCard label="Pending" value={String(stats.pendingAttendees)} />
+          <StatCard label="Declined" value={String(stats.declinedAttendees)} />
         </div>
         <Card>
           <p className="mb-3 text-sm font-medium text-akoma-ink">RSVP breakdown</p>
-          <RsvpPieChart confirmed={confirmed} pending={pending} declined={declined} />
+          <RsvpPieChart confirmed={stats.confirmedAttendees} pending={stats.pendingAttendees} declined={stats.declinedAttendees} />
         </Card>
       </div>
 
       <Card>
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-sm font-medium text-akoma-ink">Add a guest</p>
+          <ImportGuestsModal weddingPlanId={weddingPlan!.id} />
+        </div>
         <AddGuestForm weddingPlanId={weddingPlan!.id} />
       </Card>
 

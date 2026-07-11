@@ -92,22 +92,26 @@ enum VendorInterestStatus {
 // coexist. passwordHash is nullable because the seeded stub user (and any
 // future social-login user) may not have one.
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  name          String
+  id                String   @id @default(cuid())
+  email             String   @unique
+  name              String
   // Hashed with Node's built-in crypto.scrypt (src/lib/auth.ts) — never a
   // plaintext password. Null for the seeded stub account and for social
   // logins (which don't have a password at all).
-  passwordHash  String?
+  passwordHash      String?
   // "EMAIL" for a real sign-up, or the social button name ("GOOGLE",
   // "APPLE", "FACEBOOK", "MICROSOFT") for a lightweight record of intent —
   // those buttons are disabled/"coming soon" today (see SignUpForm.tsx),
   // no OAuth is actually wired up yet.
-  authProvider  String   @default("EMAIL")
+  authProvider      String   @default("EMAIL")
   // Never set true by a real verification link (none is sent yet) — only by
   // the clearly-labelled demo shortcut on /verify-email.
-  emailVerified Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  emailVerified     Boolean  @default(false)
+  // Path under /public (e.g. "/uploads/avatars/<id>-<ts>.jpg") written by
+  // the upload route handler — see src/app/api/upload/avatar/route.ts for
+  // why this is local-disk storage for now, not a real object-storage URL.
+  profilePictureUrl String?
+  createdAt         DateTime @default(now())
 
   ownedWeddingPlans WeddingPlan[]   @relation("WeddingOwner")
   memberships       WeddingMember[]
@@ -162,6 +166,7 @@ model WeddingPlan {
   aiLogs                AIInteractionLog[]
   coupleProfile         CoupleProfile?
   vendorBookingStatuses VendorBookingStatus[]
+  notifications         Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -247,12 +252,17 @@ model CoupleProfile {
 
   // Wedding style — informational personalization only (see
   // dashboard/page.tsx's "Your wedding style" card); never used to re-skin
-  // the app's own chrome or charts.
-  theme        String?
-  colorPalette String?
-  dressCode    String?
-  visionNotes  String?
-  pinterestUrl String?
+  // the app's own chrome or charts. primaryColor/secondaryColor are hex
+  // strings (e.g. "#D4A017") chosen via a real color picker or a preset
+  // palette (see lib/wedding-palettes.ts) — replaced the old free-text
+  // colorPalette field so the dashboard swatch is a real color, not a
+  // guess parsed from a color-name string.
+  theme          String?
+  primaryColor   String?
+  secondaryColor String?
+  dressCode      String?
+  visionNotes    String?
+  pinterestUrl   String?
 
   // Planning preferences.
   biggestConcern            String?
@@ -484,4 +494,46 @@ model AIInteractionLog {
   outputSummary String
   isMock        Boolean     @default(true)
   createdAt     DateTime    @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+enum NotificationType {
+  TASK
+  GUEST
+  BUDGET
+  WEDDING
+  VENDOR
+  SYSTEM
+}
+
+// One row per notification, real (not computed-on-render), so "mark as
+// read" actually persists. Two kinds of writer, both going through the
+// same createNotification() helper in src/lib/notifications.ts:
+//   1. Event-based — written once, at the moment something happens (e.g.
+//      "Welcome to Akoma Planner" from createWeddingPlan()).
+//   2. State-derived — re-synced from live data (budget %, pending
+//      RSVPs, vendor booking status, countdown milestones) every time
+//      syncComputedNotifications() runs. `key` is what makes that safe:
+//      it's a stable, semantic id (e.g. "budget-over",
+//      "vendor-PHOTOGRAPHER-not-booked") that a re-sync upserts against,
+//      refreshing only the message text — isRead and createdAt are never
+//      touched by an update, so marking something read actually sticks.
+// createNotification() is also the one seam a future email/WhatsApp/
+// Telegram/push/SMS dispatch would hook into — not built now, just left
+// obvious, same as the real-provider swap points in billing.ts/bisaai.ts.
+model Notification {
+  id            String           @id @default(cuid())
+  weddingPlanId String
+  weddingPlan   WeddingPlan      @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
+  key           String
+  type          NotificationType
+  message       String
+  actionHref    String?
+  isRead        Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+
+  @@unique([weddingPlanId, key])
 }

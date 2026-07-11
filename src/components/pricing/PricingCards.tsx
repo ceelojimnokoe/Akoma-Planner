@@ -14,7 +14,6 @@
 
 import { useState } from "react";
 import { LinkButton } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
 import { PRICING, type BillingInterval } from "@/lib/pricing";
 import { formatGHS } from "@/lib/currency";
 
@@ -76,9 +75,15 @@ export function PricingCards() {
         </div>
 
         <div className="relative rounded-2xl border-2 border-akoma-gold bg-white p-6">
-          <Badge tone="gold" className="absolute -top-3 left-6">
+          {/* Not the shared Badge component: Badge's "gold" tone is a
+              translucent bg-akoma-gold/15, which lets this card's solid
+              2px border bleed through right where the pill straddles it.
+              A one-off solid pill avoids both that and the Tailwind
+              class-override-order footgun of fighting the tone's own
+              background class via a later className. */}
+          <span className="absolute -top-3 left-6 z-10 rounded-full bg-akoma-gold px-2.5 py-0.5 text-xs font-medium text-white">
             Most Popular
-          </Badge>
+          </span>
           <h2 className="font-semibold text-akoma-ink">AkomaPlanner Pro</h2>
           <p className="mt-1 text-3xl font-bold text-akoma-ink">
             {formatGHS(price.amountGHS)} <span className="text-base font-normal text-akoma-ink/50">{price.suffix}</span>

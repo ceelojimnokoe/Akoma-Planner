@@ -84,6 +84,10 @@ async function TraditionalListContent({ weddingPlanId, city }: { weddingPlanId: 
         </p>
       </Card>
 
+      {Object.keys(itemsByCategory).length === 0 && (
+        <p className="py-8 text-center text-sm text-akoma-ink/50">No traditional list items priced for this market yet.</p>
+      )}
+
       {Object.entries(itemsByCategory).map(([category, items]) => (
         <Card key={category}>
           <h2 className="mb-3 font-semibold text-akoma-ink">{category}</h2>

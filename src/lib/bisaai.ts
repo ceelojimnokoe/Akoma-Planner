@@ -41,6 +41,7 @@
 import { prisma } from "./prisma";
 import type { City, Vendor, VendorCategory } from "@prisma/client";
 import { formatGHS } from "./currency";
+import { calculateGuestStats } from "./guests";
 
 // ---------------------------------------------------------------------------
 // Shared response envelope
@@ -592,8 +593,12 @@ export interface SeatingSuggestionsOutput {
 /** Pro. Grounded in the real guest list (confirmed YES RSVPs only) —
  *  simple rule-based grouping by side, not a real optimizer. Real
  *  integration TODO: an LLM or constraint solver could account for
- *  relationships/conflicts noted by the couple; today it's a naive
- *  fixed-size chunking of the guest list. */
+ *  relationships/conflicts noted by the couple; today it's a greedy
+ *  fixed-capacity bin-pack, one pass through the guest list in side
+ *  order. Packs by *seats*, not guest rows — a guest with +1 checked
+ *  takes 2 seats at their table (see lib/guests.ts), so a table never
+ *  actually seats more people than tableSize just because the head
+ *  count of *rows* happened to fit. */
 export async function seatingSuggestions(input: SeatingSuggestionsInput): Promise<BisaAIResponse<SeatingSuggestionsOutput>> {
   const tableSize = input.tableSize ?? 10;
   const guests = await prisma.guest.findMany({
@@ -601,19 +606,34 @@ export async function seatingSuggestions(input: SeatingSuggestionsInput): Promis
     orderBy: { side: "asc" },
   });
 
-  const tables: SeatingTable[] = [];
-  for (let i = 0; i < guests.length; i += tableSize) {
-    const chunk = guests.slice(i, i + tableSize);
+  function buildTable(chunk: typeof guests, tableNumber: number): SeatingTable {
     const sides = new Set(chunk.map((g) => g.side));
     const side = sides.size > 1 ? "MIXED" : (chunk[0]?.side ?? "MIXED");
-    tables.push({
-      tableNumber: tables.length + 1,
+    return {
+      tableNumber,
       side: side as SeatingTable["side"],
       guestNames: chunk.map((g) => g.name + (g.plusOne ? " (+1)" : "")),
-    });
+    };
   }
 
-  await logAiInteraction(input.weddingPlanId, "seatingSuggestions", `tableSize=${tableSize}`, `${tables.length} tables suggested for ${guests.length} confirmed guests`);
+  const tables: SeatingTable[] = [];
+  let currentChunk: typeof guests = [];
+  let currentSeats = 0;
+
+  for (const guest of guests) {
+    const seats = guest.plusOne ? 2 : 1;
+    if (currentChunk.length > 0 && currentSeats + seats > tableSize) {
+      tables.push(buildTable(currentChunk, tables.length + 1));
+      currentChunk = [];
+      currentSeats = 0;
+    }
+    currentChunk.push(guest);
+    currentSeats += seats;
+  }
+  if (currentChunk.length > 0) tables.push(buildTable(currentChunk, tables.length + 1));
+
+  const totalAttendees = calculateGuestStats(guests).confirmedAttendees;
+  await logAiInteraction(input.weddingPlanId, "seatingSuggestions", `tableSize=${tableSize}`, `${tables.length} tables suggested for ${totalAttendees} confirmed attendees`);
   return ok({ tableSize, tables });
 }
 

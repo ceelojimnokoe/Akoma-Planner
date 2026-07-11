@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentWeddingPlan } from "@/lib/session";
 import { requirePro } from "@/lib/plan";
 import { calculateBudgetSummary } from "@/lib/budget";
+import { calculateGuestStats } from "@/lib/guests";
 import { generateFullReportPdf } from "@/lib/pdf";
 
 export async function GET() {
@@ -28,11 +29,13 @@ export async function GET() {
   ]);
 
   const budgetSummary = calculateBudgetSummary(weddingPlan.totalBudgetGHS, budgetCategories);
+  const stats = calculateGuestStats(guests);
+  // Attendee counts (a +1 is 2 people), not guest-row counts — see lib/guests.ts.
   const guestSummary = {
-    total: guests.length,
-    confirmed: guests.filter((g) => g.rsvpStatus === "YES").length,
-    pending: guests.filter((g) => g.rsvpStatus === "PENDING").length,
-    declined: guests.filter((g) => g.rsvpStatus === "NO").length,
+    total: stats.totalAttendees,
+    confirmed: stats.confirmedAttendees,
+    pending: stats.pendingAttendees,
+    declined: stats.declinedAttendees,
   };
 
   const pdfBytes = await generateFullReportPdf(weddingPlan, checklistItems, budgetSummary, guestSummary);

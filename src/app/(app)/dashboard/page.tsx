@@ -9,21 +9,26 @@
 
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getCurrentWeddingPlan } from "@/lib/session";
+import { getCurrentUser, getCurrentWeddingPlan } from "@/lib/session";
 import { calculateBudgetSummary } from "@/lib/budget";
 import { formatGHS } from "@/lib/currency";
 import { daysUntil, formatDate } from "@/lib/dates";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { VendorStatusCard } from "@/components/dashboard/VendorStatusCard";
 import { WeddingStyleCard } from "@/components/dashboard/WeddingStyleCard";
+import { GuestProgressCard } from "@/components/dashboard/GuestProgressCard";
+import { calculateGuestStats } from "@/lib/guests";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
+import { Avatar } from "@/components/ui/Avatar";
+import { getBudgetTone } from "@/lib/budget-tone";
+import { BudgetAlertWatcher } from "@/components/budget/BudgetAlertWatcher";
 
 export default async function DashboardPage() {
   // Layout already redirects to /onboarding if this is null, so this is
   // safe to treat as non-null here.
-  const weddingPlan = await getCurrentWeddingPlan();
+  const [user, weddingPlan] = await Promise.all([getCurrentUser(), getCurrentWeddingPlan()]);
   const [budgetCategories, checklistItems, guests, recommendedAccommodation, coupleProfile, vendorBookingStatuses] =
     await Promise.all([
       prisma.budgetCategory.findMany({ where: { weddingPlanId: weddingPlan!.id } }),
@@ -46,17 +51,22 @@ export default async function DashboardPage() {
   // This week's focus: the checklist items that actually matter most right
   // now — not done, marked HIGH priority, soonest due date first.
   const focusTasks = checklistItems.filter((i) => !i.done && i.priority === "HIGH").slice(0, 5);
-  const confirmedGuests = guests.filter((g) => g.rsvpStatus === "YES").length;
+  const guestStats = calculateGuestStats(guests);
   const days = daysUntil(weddingPlan!.weddingDate);
 
-  // Additive, not a replacement for TopBar's coupleNames title — only
-  // shown once the couple has actually filled in display names.
+  // Additive, not a replacement for TopBar's coupleNames title — falls
+  // back to a plain greeting once the couple has filled in display names.
   const greetingNames = [coupleProfile?.displayName1, coupleProfile?.displayName2].filter(Boolean).join(" & ");
-  const hasStyleInfo = coupleProfile?.theme || coupleProfile?.colorPalette || coupleProfile?.dressCode;
+  const hasStyleInfo = coupleProfile?.theme || coupleProfile?.primaryColor || coupleProfile?.dressCode;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      {greetingNames && <p className="text-sm text-akoma-ink/60">Welcome back, {greetingNames} 👋</p>}
+      <div className="flex items-center gap-3">
+        <Avatar pictureUrl={user.profilePictureUrl} name={user.name} size="lg" />
+        <p className="text-sm text-akoma-ink/60">Welcome back{greetingNames ? `, ${greetingNames}` : ""} 👋</p>
+      </div>
+
+      <BudgetAlertWatcher weddingPlanId={weddingPlan!.id} percentSpent={budget.percentSpent} />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
@@ -68,7 +78,7 @@ export default async function DashboardPage() {
           label="Budget spent"
           value={formatGHS(budget.totalSpentGHS)}
           subtext={`of ${formatGHS(budget.totalBudgetGHS)} (${Math.round(budget.percentSpent)}%)`}
-          ring={{ percent: budget.percentSpent, tone: budget.percentSpent > 100 ? "terracotta" : "green" }}
+          ring={{ percent: budget.percentSpent, tone: getBudgetTone(budget.percentSpent) }}
         />
         <StatCard
           label="Checklist progress"
@@ -78,8 +88,8 @@ export default async function DashboardPage() {
         />
         <StatCard
           label="Guests confirmed"
-          value={`${confirmedGuests}`}
-          subtext={`of ${guests.length} invited (est. ${weddingPlan!.guestEstimate})`}
+          value={`${guestStats.confirmedAttendees}`}
+          subtext={`of ${guestStats.totalAttendees} invited (est. ${weddingPlan!.guestEstimate})`}
         />
       </div>
 
@@ -169,14 +179,14 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <div className={hasStyleInfo ? "grid gap-6 lg:grid-cols-3" : ""}>
-        <div className={hasStyleInfo ? "lg:col-span-2" : ""}>
-          <VendorStatusCard statuses={vendorBookingStatuses} />
-        </div>
+      <div className={`grid gap-6 ${hasStyleInfo ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+        <VendorStatusCard statuses={vendorBookingStatuses} />
+        <GuestProgressCard confirmedAttendees={guestStats.confirmedAttendees} guestEstimate={weddingPlan!.guestEstimate} />
         {hasStyleInfo && (
           <WeddingStyleCard
             theme={coupleProfile?.theme ?? null}
-            colorPalette={coupleProfile?.colorPalette ?? null}
+            primaryColor={coupleProfile?.primaryColor ?? null}
+            secondaryColor={coupleProfile?.secondaryColor ?? null}
             dressCode={coupleProfile?.dressCode ?? null}
           />
         )}

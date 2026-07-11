@@ -4,6 +4,7 @@ import type { StepProps } from "@/components/onboarding/onboarding-types";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
+import { ColorPaletteField } from "@/components/onboarding/ColorPaletteField";
 
 export function StyleStep({ form, update, errors }: StepProps) {
   return (
@@ -21,9 +22,12 @@ export function StyleStep({ form, update, errors }: StepProps) {
         </Field>
       </div>
 
-      <Field label="Color palette" hint="e.g. Gold, Ivory, Forest Green">
-        <Input value={form.colorPalette} onChange={(e) => update("colorPalette", e.target.value)} />
-      </Field>
+      <ColorPaletteField
+        primaryColor={form.primaryColor}
+        secondaryColor={form.secondaryColor}
+        onPrimaryChange={(hex) => update("primaryColor", hex)}
+        onSecondaryChange={(hex) => update("secondaryColor", hex)}
+      />
 
       <Field label="Vision or inspiration (optional)">
         <Textarea

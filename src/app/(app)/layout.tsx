@@ -16,27 +16,30 @@
 // (○ Static vs ƒ Dynamic), not by assumption. See LEARNING.md.
 
 import { redirect } from "next/navigation";
-import { getCurrentWeddingPlan } from "@/lib/session";
+import { getCurrentUser, getCurrentWeddingPlan } from "@/lib/session";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { FloatingChatBubble } from "@/components/bisaai/FloatingChatBubble";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const weddingPlan = await getCurrentWeddingPlan();
+  const [user, weddingPlan] = await Promise.all([getCurrentUser(), getCurrentWeddingPlan()]);
   if (!weddingPlan) redirect("/onboarding");
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex flex-1 flex-col">
-        <TopBar weddingPlan={weddingPlan} />
-        <main className="flex-1 bg-akoma-cream p-6">{children}</main>
+    <ToastProvider>
+      <div className="flex min-h-screen">
+        <Sidebar user={user} plan={weddingPlan.plan} />
+        <div className="flex flex-1 flex-col">
+          <TopBar weddingPlan={weddingPlan} user={user} />
+          <main className="flex-1 bg-akoma-cream p-6">{children}</main>
+        </div>
+        {/* Mounted once here so it persists (collapsed by default) across
+            every page in the app shell, not just the dedicated /bisaai page. */}
+        <FloatingChatBubble weddingPlanId={weddingPlan.id} />
       </div>
-      {/* Mounted once here so it persists (collapsed by default) across
-          every page in the app shell, not just the dedicated /bisaai page. */}
-      <FloatingChatBubble weddingPlanId={weddingPlan.id} />
-    </div>
+    </ToastProvider>
   );
 }
