@@ -10,10 +10,12 @@
 //    check is a UX convenience, not the real security boundary).
 
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWeddingPlan } from "@/lib/session";
 import { requirePro } from "@/lib/plan";
 import { formatGHS } from "@/lib/currency";
+import { getVendorImage } from "@/lib/vendor-images";
 import { Card } from "@/components/ui/Card";
 import { Badge, ProBadge } from "@/components/ui/Badge";
 import { UpgradePrompt } from "@/components/pro/UpgradePrompt";
@@ -36,6 +38,10 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ v
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <Card>
+        <div className="relative mb-4 h-56 w-full overflow-hidden rounded-lg bg-akoma-cream">
+          <Image src={getVendorImage(vendor)} alt={vendor.name} fill className="object-cover" priority />
+        </div>
+
         <div className="mb-1 flex items-center gap-2">
           <h1 className="text-xl font-bold text-akoma-ink">{vendor.name}</h1>
           {vendor.isProFeatured && <ProBadge />}

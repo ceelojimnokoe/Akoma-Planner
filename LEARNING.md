@@ -1342,3 +1342,119 @@ integration has exactly one place to add a dispatch call, the same
 "swap seam" shape as `lib/bisaai.ts`'s real-AI-provider TODOs and
 `billing.ts`'s real-payment-provider TODO — documented in the schema
 comment, not built, since no channel was actually asked for yet.
+
+## 37. A real logo, and choosing hand-crafted SVGs over paid AI generation for 14 placeholders
+
+**Chosen:** Replaced the plain "AkomaPlanner" text that stood in for a
+logo since the very first checkpoint with the couple's real brand mark
+(`src/assets/images/logo/logo.png`), and gave every vendor category a
+placeholder image — real photo if a vendor has one (`Vendor.imageUrl`,
+which had existed in the schema since the vendor catalog was first built
+but was never actually rendered anywhere), an elegant category
+illustration if not.
+
+**Asked before spending real resources on 14 images.** The request
+explicitly invited using AI image generation (a Higgsfield MCP tool was
+available this session) "if available." Rather than just doing that
+because it was technically possible, this went back to the user first:
+hand-crafted SVG icons (zero cost, perfect guaranteed consistency across
+all 14, matches how every other visual in this app — charts, the color
+picker, all of it — is already hand-rolled with no external image
+dependency) vs. AI-generated images (can look more "real," but costs
+real usage on a paid external service, and 14 *separately* generated
+images staying visually consistent with each other is a real risk, not
+a given). The user picked hand-crafted SVGs. Worth remembering
+generally: "the tool is available" and "reaching for it is the right
+call" are different questions, especially once real money or an external
+service is involved — that's worth a quick check-in, not a unilateral
+decision, even when the request reads as an invitation.
+
+**A real, if easy to miss, Next.js security default: local SVGs are
+blocked by the image optimizer unless you opt in.** `next/image` refuses
+to serve local SVG sources by default — they can embed `<script>`, a
+real XSS vector for *untrusted* SVGs — so all 14 placeholders 404'd
+through `/_next/image` until `next.config.ts` explicitly set
+`images.dangerouslyAllowSVG: true` (plus a content-security-policy on the
+image response itself). Safe here specifically because the only SVGs
+ever handed to `next/image` are this app's own hand-authored files under
+`src/assets/`, never a user upload — the avatar-upload route already
+excludes `image/svg+xml` from its own MIME allow-list for the exact same
+reason, so the two decisions reinforce rather than contradict each other.
+Caught by actually loading the page and watching for failed image
+requests in the network log, not by assumption — the same "run it, don't
+just read the diff" habit this project has leaned on all along.
+
+**Two category-enum lists, reconciled once, in one file.** The request's
+12 vendor categories matched `ONBOARDING_VENDOR_CATEGORIES` exactly (the
+onboarding wizard's own list, see LEARNING.md #34) but not the real
+Vendor catalog's `VendorCategory` enum (10 values — no separate
+Videographer/Florist/Hair/DJ-Band/MC). `lib/vendor-images.ts` keeps two
+lookup tables, one per enum, both pointing at the same 14 image files
+(plus two extra placeholders — Attire and a generic Other — added
+specifically to cover the two real catalog categories the 12-item list
+didn't reach) rather than trying to force one enum to serve both call
+sites.
+
+**A layout bug caught only by screenshot, again.** Adding a 24px icon to
+the dashboard's Vendor Status grid (3 columns, already tight) squeezed
+the status badge text into overlapping the category label — readable in
+theory (`truncate` was doing something) but visually broken in practice.
+Fixed by stacking icon+label above the badge instead of cramming both
+onto one row. The onboarding wizard's own Vendor Status step used a
+similar icon treatment but never broke, because its grid is only 2
+columns with real room per row — the same component idea, two different
+layouts, only one of which actually had space for it. Another entry in
+the growing list of bugs this project has only ever found by looking at
+a rendered screenshot, never by a passing assertion.
+
+## 38. Vendor card overlap fix, a vendor plan filter, dashboard re-weighting, and a real Accommodation model
+
+**The bug:** `VendorCard`'s "Compare" checkbox was `position: absolute`,
+placed as the first element in the JSX back when it was the first visual
+content on the card. The vendor-image checkpoint (#37) added an image
+*above* it in render order without touching the checkbox's positioning —
+so it kept floating at the same absolute coordinates, which now landed on
+top of the image instead of the text below it. Fixed by rebuilding the
+card without `position: absolute` at all: image fills a fixed-height top
+section (`h-44 w-full`, `object-cover`), everything else — name, rating,
+description, price, "View details" / Compare — flows normally underneath,
+Compare included, so nothing can drift out of place the next time the
+card's contents change order again. Deliberately not built on the shared
+`<Card>` component, same reasoning as before (see #37/earlier entries on
+Tailwind's class-order footgun) — `<Card>` bakes in its own padding and
+this card needs the image flush to all four edges of its top section.
+
+**Vendor plan filter is a listing property, not a viewer permission.**
+The new "All vendors / Free / Pro" filter on `/vendors` filters by
+`Vendor.isProFeatured` — whether *that vendor's listing* is Pro-tier —
+which is a completely different flag from `locked`, which is whether
+*the viewer's own account* is on Free and therefore can't see pricing/
+contact details. A Free-plan viewer filtering to "Pro" still sees locked
+cards; a Pro-plan viewer filtering to "Free" sees full unlocked cards.
+Conflating the two would have quietly broken the paywall.
+
+**Dashboard: 2/3 + 1/3 instead of three equal columns.** Vendor Status,
+Guest Confirmed, and Wedding Style used to flex between 2 and 3 equal
+columns depending on whether style info existed. Re-weighted to
+`lg:grid-cols-3` with Vendor Status spanning `col-span-2` and Guest
+Confirmed + Wedding Style stacked in the remaining column, because vendor
+booking is the task couples actually return to most — the other two are
+glanceable status, not something you interact with each visit. Vendor
+Status's own category grid picked up a `lg:grid-cols-4` step to use the
+extra width usefully instead of leaving whitespace.
+
+**Accommodation went from a bare list to a real model.** `description`,
+`rating`, and `amenities` (comma-separated, same convention as
+`WeddingPlan.tradition` — a real amenities taxonomy is more structure
+than an MVP booking-adjacent list needs) were added to the schema, and
+`imageUrl` for the same "real photo wins, else a placeholder" pattern as
+`Vendor.imageUrl`. Accommodations have no category enum the way vendors
+do, so `lib/accommodation-images.ts` can't key placeholders off a
+category — instead it hashes the listing's `id` to deterministically
+pick one of four property-style SVGs (hotel/guesthouse/boutique/resort).
+Deterministic-by-id beats random-on-render for a boring but important
+reason: a listing's placeholder can't flicker to a different image on
+every re-render or navigation, since nothing about the hash input
+changes between requests. Seed data grew from 6 accommodations to 12 (6
+per city) so the new grid layout had enough real content to actually
+look like a listings page instead of two lonely cards.

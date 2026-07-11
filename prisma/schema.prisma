@@ -468,6 +468,17 @@ model Accommodation {
   priceLowGHS         Float
   priceHighGHS        Float
   contactPhone        String?
+  description         String?
+  rating              Float    @default(4.5)
+  // Comma-separated, same simple-list convention as other free-text
+  // fields in this schema (see WeddingPlan.tradition) — a real amenities
+  // taxonomy is more structure than an MVP booking-adjacent list needs.
+  amenities           String?
+  // A real uploaded photo if one exists; otherwise a placeholder is
+  // chosen from a small rotating set (see lib/accommodation-images.ts) —
+  // same "real photo wins, else a category/type placeholder" pattern as
+  // Vendor.imageUrl.
+  imageUrl            String?
   // Loosely associated with a sample venue vendor so distance has meaning
   // in the seed data; nullable because not every accommodation needs one.
   nearVendorId        String?

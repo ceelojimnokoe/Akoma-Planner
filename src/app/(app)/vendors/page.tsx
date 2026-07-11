@@ -16,15 +16,19 @@ import type { City, VendorCategory } from "@prisma/client";
 export default async function VendorsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; city?: string }>;
+  searchParams: Promise<{ category?: string; city?: string; plan?: string }>;
 }) {
-  const { category, city } = await searchParams;
+  const { category, city, plan } = await searchParams;
   const weddingPlan = await getCurrentWeddingPlan();
 
   const vendors = await prisma.vendor.findMany({
     where: {
       ...(category ? { category: category as VendorCategory } : {}),
       ...(city ? { city: city as City } : {}),
+      // "Free"/"Pro" here means whether the LISTING is Pro-featured
+      // (isProFeatured) — not the viewer's own plan, which is a separate
+      // gate (see `locked` below).
+      ...(plan === "PRO" ? { isProFeatured: true } : plan === "FREE" ? { isProFeatured: false } : {}),
     },
     orderBy: [{ rating: "desc" }],
   });
@@ -43,7 +47,7 @@ export default async function VendorsPage({
         </LinkButton>
       </div>
 
-      <VendorFilters category={category} city={city} />
+      <VendorFilters category={category} city={city} plan={plan} />
 
       {vendors.length === 0 ? (
         <p className="py-12 text-center text-sm text-akoma-ink/50">No vendors match those filters.</p>

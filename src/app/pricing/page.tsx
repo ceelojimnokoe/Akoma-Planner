@@ -4,22 +4,13 @@
 // sidebar) — reachable both from the public landing page and from the
 // sidebar's bottom nav link while inside the app.
 
-import Link from "next/link";
+import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PricingCards } from "@/components/pricing/PricingCards";
 
 export default function PricingPage() {
   return (
     <div className="min-h-screen bg-akoma-cream">
-      <header className="border-b border-akoma-ink/10 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link href="/" className="text-lg font-semibold text-akoma-green">
-            AkomaPlanner
-          </Link>
-          <Link href="/dashboard" className="text-sm text-akoma-ink/60 hover:underline">
-            Back to dashboard
-          </Link>
-        </div>
-      </header>
+      <PublicHeader backHref="/dashboard" backLabel="Back to dashboard" />
 
       <main className="mx-auto max-w-4xl px-6 py-16">
         <div className="mb-10 text-center">

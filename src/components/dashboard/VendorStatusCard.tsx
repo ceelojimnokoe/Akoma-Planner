@@ -6,8 +6,10 @@
 // never drift from the onboarding step that produced the data.
 
 import Link from "next/link";
+import Image from "next/image";
 import type { VendorBookingStatus } from "@prisma/client";
 import { ONBOARDING_VENDOR_CATEGORIES } from "@/lib/validation/wedding";
+import { ONBOARDING_CATEGORY_IMAGES } from "@/lib/vendor-images";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 
@@ -38,13 +40,20 @@ export function VendorStatusCard({ statuses }: { statuses: VendorBookingStatus[]
           Browse vendors →
         </Link>
       </div>
-      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {ONBOARDING_VENDOR_CATEGORIES.map((c) => {
           const status = byCategory.get(c.value as VendorBookingStatus["category"]) ?? "NOT_STARTED";
           return (
-            <li key={c.value} className="flex items-center justify-between gap-2 rounded-lg border border-akoma-ink/10 px-2.5 py-1.5">
-              <span className="truncate text-xs text-akoma-ink/80">{c.label}</span>
-              <Badge tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Badge>
+            <li key={c.value} className="flex flex-col gap-1.5 rounded-lg border border-akoma-ink/10 px-2.5 py-1.5">
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span className="relative h-5 w-5 shrink-0 overflow-hidden rounded-full bg-akoma-cream">
+                  <Image src={ONBOARDING_CATEGORY_IMAGES[c.value]} alt="" fill className="object-cover" />
+                </span>
+                <span className="truncate text-xs text-akoma-ink/80" title={c.label}>{c.label}</span>
+              </span>
+              <Badge tone={STATUS_TONE[status]} className="self-start">
+                {STATUS_LABEL[status]}
+              </Badge>
             </li>
           );
         })}

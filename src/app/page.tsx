@@ -13,6 +13,7 @@
 import { LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Logo } from "@/components/ui/Logo";
 import { getSessionUserId } from "@/lib/auth";
 
 const FEATURES = [
@@ -47,11 +48,9 @@ export default async function LandingPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-akoma-ink/10">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <span className="text-lg font-semibold text-akoma-green">
-            AkomaPlanner
-          </span>
+      <header className="border-b border-akoma-ink/10 bg-white">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
+          <Logo className="h-12 w-auto" />
           <nav className="flex items-center gap-3">
             <LinkButton href="/pricing" variant="ghost" size="sm">
               Pricing

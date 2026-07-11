@@ -5,8 +5,10 @@
 // not the Vendor catalog's categories, since this is a self-reported
 // checklist rather than something tied to the real vendor browsing feature.
 
+import Image from "next/image";
 import type { StepProps } from "@/components/onboarding/onboarding-types";
 import { ONBOARDING_VENDOR_CATEGORIES } from "@/lib/validation/wedding";
+import { ONBOARDING_CATEGORY_IMAGES } from "@/lib/vendor-images";
 import { Select } from "@/components/ui/Select";
 
 const STATUS_OPTIONS = [
@@ -26,7 +28,12 @@ export function VendorStatusStep({ form, update }: StepProps) {
       <div className="grid gap-3 sm:grid-cols-2">
         {ONBOARDING_VENDOR_CATEGORIES.map((c) => (
           <div key={c.value} className="flex items-center justify-between gap-3 rounded-lg border border-akoma-ink/10 px-3 py-2">
-            <span className="text-sm font-medium text-akoma-ink">{c.label}</span>
+            <span className="flex items-center gap-2">
+              <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full bg-akoma-cream">
+                <Image src={ONBOARDING_CATEGORY_IMAGES[c.value]} alt="" fill className="object-cover" />
+              </span>
+              <span className="text-sm font-medium text-akoma-ink">{c.label}</span>
+            </span>
             <Select
               className="w-40"
               value={form.vendorStatus[c.value] ?? "NOT_STARTED"}

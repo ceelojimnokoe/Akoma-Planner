@@ -25,6 +25,7 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { ProBadge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
+import { Logo } from "@/components/ui/Logo";
 import { signOut } from "@/server/actions/auth";
 
 interface NavItem {
@@ -81,8 +82,8 @@ export function SidebarContent({
 
   return (
     <>
-      <Link href="/" className="px-6 py-5 text-lg font-semibold text-akoma-green" onClick={onNavigate}>
-        AkomaPlanner
+      <Link href="/" className="px-6 py-4" onClick={onNavigate}>
+        <Logo className="h-14 w-auto" />
       </Link>
       <nav className="flex-1 space-y-1 px-3">
         {CORE_ITEMS.map((item) => (
