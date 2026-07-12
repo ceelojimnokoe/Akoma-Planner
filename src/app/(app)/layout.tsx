@@ -31,10 +31,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <ToastProvider>
       <div className="flex min-h-screen">
-        <Sidebar user={user} plan={weddingPlan.plan} />
+        <Sidebar user={user} hasWeddingPass={weddingPlan.hasWeddingPass} />
         <div className="flex flex-1 flex-col">
           <TopBar weddingPlan={weddingPlan} user={user} />
-          <main className="flex-1 bg-akoma-cream p-6">{children}</main>
+          {/* Extra bottom padding reserves room for the floating chat bubble
+              (see FloatingChatBubble.tsx) so it doesn't sit on top of the
+              last section of page content. Reserving *horizontal* space
+              here too was tried and reverted — it shrank the dashboard's
+              top stat-card row enough to trigger StatCard's own truncate
+              behavior ("Budget spent" -> "GH..."). Right-side clearance
+              for the handful of pages/sections actually at risk (a
+              right-hand card in a multi-column row landing under the
+              bubble) is instead reserved locally on just those sections —
+              see the pr-20/pr-14 comments in dashboard/page.tsx,
+              accommodation/page.tsx, and bisaai/page.tsx. */}
+          <main className="flex-1 bg-akoma-cream p-6 pb-24">{children}</main>
         </div>
         {/* Mounted once here so it persists (collapsed by default) across
             every page in the app shell, not just the dedicated /bisaai page. */}

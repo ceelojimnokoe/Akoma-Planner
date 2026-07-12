@@ -32,11 +32,12 @@
 //    grepping this file for `prisma.` and confirming every write is to
 //    `aIInteractionLog`.
 //
-// 2. NO PLAN GATING IN HERE. Whether a function is "Free" or "Pro" is
-//    decided by the caller (a server action) using requirePro() from
-//    lib/plan.ts *before* calling into this file. This file has no idea
-//    what plan a wedding is on — that keeps gating logic in exactly one
-//    place (lib/plan.ts) instead of duplicated across every AI function.
+// 2. NO PLAN GATING IN HERE. Whether a function is Free or requires the
+//    Wedding Pass is decided by the caller (a server action) using
+//    requirePass() from lib/plan.ts *before* calling into this file. This
+//    file has no idea whether a wedding has the Pass — that keeps gating
+//    logic in exactly one place (lib/plan.ts) instead of duplicated
+//    across every AI function.
 
 import { prisma } from "./prisma";
 import type { City, Vendor, VendorCategory } from "@prisma/client";
@@ -161,7 +162,7 @@ const QA_KNOWLEDGE_BASE: Array<{ keywords: string[]; answer: string }> = [
 ];
 
 const QA_FALLBACK_ANSWER =
-  "I don't have a specific mock answer prepared for that question yet. In this demo build, BisaAI's Q&A runs on a small fixed knowledge base rather than a real language model — try asking about budget splits, traditional ceremony order, checklist timing, or guest/RSVP planning, or check back once real AI integration is wired in.";
+  "I don't have a prepared answer for that one yet. Right now BisaAI's Q&A runs on a small fixed knowledge base rather than a real language model — try asking about budget splits, traditional ceremony order, checklist timing, or guest/RSVP planning, or check back once real AI is wired in.";
 
 /** Free-tier Q&A. Real integration TODO: replace the keyword lookup below
  *  with a call to an LLM (OPENAI_API_KEY / ANTHROPIC_API_KEY), passing the

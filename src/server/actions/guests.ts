@@ -10,7 +10,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { canAddGuest, FREE_LIMITS } from "@/lib/plan";
+import { canAddGuest, canAccessPassFeatures, FREE_LIMITS } from "@/lib/plan";
 
 const addGuestSchema = z.object({
   weddingPlanId: z.string().min(1),
@@ -32,7 +32,7 @@ export async function addGuest(input: {
 
   const weddingPlan = await prisma.weddingPlan.findUniqueOrThrow({ where: { id: parsed.data.weddingPlanId } });
   const existingCount = await prisma.guest.count({ where: { weddingPlanId: parsed.data.weddingPlanId } });
-  const gate = canAddGuest(weddingPlan.plan, existingCount);
+  const gate = canAddGuest(weddingPlan, existingCount);
   if (!gate.allowed) return { ok: false, error: gate.upgradeReason };
 
   await prisma.guest.create({
@@ -101,7 +101,9 @@ export async function importGuests(weddingPlanId: string, rows: ImportedGuestRow
   const weddingPlan = await prisma.weddingPlan.findUniqueOrThrow({ where: { id: weddingPlanId } });
   const existingCount = await prisma.guest.count({ where: { weddingPlanId } });
 
-  const room = weddingPlan.plan === "PRO" ? validRows.length : Math.max(0, FREE_LIMITS.maxGuests - existingCount);
+  const room = canAccessPassFeatures(weddingPlan)
+    ? validRows.length
+    : Math.max(0, FREE_LIMITS.maxGuests - existingCount);
   const toImport = validRows.slice(0, room);
   const skipped = rows.length - toImport.length;
 

@@ -8,6 +8,7 @@
 // working with zero setup — nothing that already calls getCurrentUser()/
 // getCurrentWeddingPlan() had to change for this to work.
 
+import { redirect } from "next/navigation";
 import { prisma } from "./prisma";
 import { getSessionUserId } from "./auth";
 
@@ -34,10 +35,29 @@ export async function getCurrentUser() {
 }
 
 /**
+ * Like getCurrentUser(), but with no seeded-demo-account fallback — an
+ * anonymous visitor is sent to /login instead of silently seeing (and
+ * acting on) the demo account. Use this on routes that render or act on
+ * account-specific data with no other guard in front of them: /verify-email,
+ * /checkout, and the PDF export routes all did exactly that before this
+ * existed. Pages inside (app)/ already sit behind a wedding-plan check in
+ * (app)/layout.tsx and don't need this on top — this is specifically for
+ * routes that have no other gate at all.
+ */
+export async function requireSession() {
+  const sessionUserId = await getSessionUserId();
+  const user = sessionUserId
+    ? await prisma.user.findUnique({ where: { id: sessionUserId } })
+    : null;
+  if (!user) redirect("/login");
+  return user;
+}
+
+/**
  * The current user's primary wedding plan (the one they own). Most MVP
  * pages only ever need this. "First owned plan" is a safe simplification
  * while the Free plan is capped at one wedding (see lib/plan.ts) — once
- * Collaboration ships, a Pro user picking between multiple weddings gets a
+ * Collaboration ships, a Wedding Pass user picking between multiple weddings gets a
  * real picker instead of this shortcut.
  */
 export async function getCurrentWeddingPlan() {

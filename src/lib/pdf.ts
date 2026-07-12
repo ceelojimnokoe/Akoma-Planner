@@ -163,7 +163,7 @@ interface FullReportGuests {
   declined: number;
 }
 
-/** Pro-tier export: checklist + budget breakdown + guest RSVP summary. */
+/** Wedding Pass export: checklist + budget breakdown + guest RSVP summary. */
 export async function generateFullReportPdf(
   wedding: WeddingHeader,
   checklistItems: ScheduleChecklistItem[],
@@ -171,7 +171,7 @@ export async function generateFullReportPdf(
   guests: FullReportGuests
 ): Promise<Uint8Array> {
   const w = await PdfWriter.create();
-  writeHeader(w, wedding, "Full Wedding Report — AkomaPlanner Pro");
+  writeHeader(w, wedding, "Full Wedding Report — AkomaPlanner");
 
   w.text("Budget", { size: 14, bold: true, gap: 10 });
   w.row("Total budget", formatGHSForPdf(budget.totalBudgetGHS), { bold: true });

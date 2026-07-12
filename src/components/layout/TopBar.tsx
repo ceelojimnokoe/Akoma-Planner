@@ -10,7 +10,7 @@
 
 import type { WeddingPlan } from "@prisma/client";
 import { LinkButton } from "@/components/ui/Button";
-import { Badge, ProBadge } from "@/components/ui/Badge";
+import { Badge, PassBadge } from "@/components/ui/Badge";
 import { daysUntil } from "@/lib/dates";
 import { MobileNavDrawer } from "@/components/layout/MobileNavDrawer";
 import type { SidebarUser } from "@/components/layout/Sidebar";
@@ -26,7 +26,7 @@ export async function TopBar({ weddingPlan, user }: { weddingPlan: WeddingPlan; 
   return (
     <header className="flex items-center justify-between border-b border-akoma-ink/10 bg-white px-4 py-4 sm:px-6">
       <div className="flex items-center gap-2">
-        <MobileNavDrawer user={user} plan={weddingPlan.plan} />
+        <MobileNavDrawer user={user} hasWeddingPass={weddingPlan.hasWeddingPass} />
         <div>
           <h1 className="font-semibold text-akoma-ink">{weddingPlan.coupleNames}</h1>
           <p className="text-sm text-akoma-ink/60">
@@ -37,13 +37,13 @@ export async function TopBar({ weddingPlan, user }: { weddingPlan: WeddingPlan; 
       </div>
       <div className="flex items-center gap-3">
         <NotificationBell weddingPlanId={weddingPlan.id} initialNotifications={notifications} initialUnreadCount={unreadCount} />
-        {weddingPlan.plan === "PRO" ? (
-          <ProBadge />
+        {weddingPlan.hasWeddingPass ? (
+          <PassBadge />
         ) : (
           <>
             <Badge tone="neutral">Free plan</Badge>
             <LinkButton href="/pricing" size="sm" variant="secondary">
-              Upgrade to Pro
+              Get the Wedding Pass
             </LinkButton>
           </>
         )}

@@ -40,7 +40,11 @@ export function Badge({
   );
 }
 
-/** Pro-plan feature marker — same gold treatment everywhere it appears. */
+/** Marks a vendor LISTING as Pro-featured (Vendor.isProFeatured) — a
+ *  property of that listing, unrelated to whether the viewer has the
+ *  Wedding Pass. See PassBadge below for the viewer's-own-access marker;
+ *  keeping the two separate is deliberate (see vendors/[vendorId]/page.tsx's
+ *  header comment on why the two gates must be kept straight). */
 export function ProBadge({ className }: { className?: string }) {
   return (
     <Badge tone="gold" className={className}>
@@ -49,12 +53,36 @@ export function ProBadge({ className }: { className?: string }) {
   );
 }
 
+/** Marks a feature that requires the Wedding Pass (the viewer's own,
+ *  one-time-purchase access level) — same gold treatment as ProBadge,
+ *  used for a different concept. See ProBadge above. */
+export function PassBadge({ className }: { className?: string }) {
+  return (
+    <Badge tone="gold" className={className}>
+      Pass
+    </Badge>
+  );
+}
+
 /** Marks any BisaAI output that isn't from a real model yet (safe-by-design:
- *  stubs must be visibly labelled as stubs). */
+ *  stubs must be visibly labelled as stubs). AI surfaces only — for
+ *  non-AI demo flows (e.g. password reset, email verification), use
+ *  DemoOnlyBadge below instead. */
 export function MockBadge({ className }: { className?: string }) {
   return (
     <Badge tone="neutral" className={className}>
       Mock — not a real AI call
+    </Badge>
+  );
+}
+
+/** Marks a non-AI demo flow that doesn't do the real-world thing it looks
+ *  like it does (e.g. no email is actually sent). Same honesty-labeling
+ *  rule as MockBadge, just worded for a flow that has nothing to do with AI. */
+export function DemoOnlyBadge({ className }: { className?: string }) {
+  return (
+    <Badge tone="neutral" className={className}>
+      Demo only — nothing is sent
     </Badge>
   );
 }

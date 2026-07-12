@@ -3,9 +3,9 @@
 // Client wrapper around the vendor cards. Its only real job is managing
 // "which vendors are checked for comparison" — that selection has to live
 // above any individual card, so it can't be server-rendered. The compare
-// checkboxes are shown to every plan (visibly-present-but-gated): a Free
+// checkboxes are shown to everyone (visibly-present-but-gated): a Free
 // user can select vendors and click through, and /vendors/compare is
-// where the actual Pro gate lives.
+// where the actual Wedding Pass gate lives.
 
 "use client";
 
@@ -15,7 +15,7 @@ import type { Vendor } from "@prisma/client";
 import { VendorCard } from "@/components/vendors/VendorCard";
 import { Button } from "@/components/ui/Button";
 
-export function VendorGrid({ vendors, plan }: { vendors: Vendor[]; plan: "FREE" | "PRO" }) {
+export function VendorGrid({ vendors, hasWeddingPass }: { vendors: Vendor[]; hasWeddingPass: boolean }) {
   const [selected, setSelected] = useState<string[]>([]);
   const router = useRouter();
 
@@ -36,7 +36,7 @@ export function VendorGrid({ vendors, plan }: { vendors: Vendor[]; plan: "FREE" 
           <VendorCard
             key={vendor.id}
             vendor={vendor}
-            locked={vendor.isProFeatured && plan === "FREE"}
+            locked={vendor.isProFeatured && !hasWeddingPass}
             selectable
             selected={selected.includes(vendor.id)}
             onToggleSelect={toggle}

@@ -1,10 +1,10 @@
 // src/app/(app)/bisaai/page.tsx
 //
-// BisaAI hub: free Q&A chat plus every Pro tool as a visible card. Free
-// users see every tool card (visibly-present-but-gated) — clicking
-// "Generate" on a Pro tool surfaces the upgrade message inline via the
-// server action's own requirePro() check, so there's no separate gating
-// branch needed in this page itself.
+// BisaAI hub: free Q&A chat plus every Wedding Pass tool as a visible
+// card. Free users see every tool card (visibly-present-but-gated) —
+// clicking "Generate" on a Pass tool surfaces the upgrade message inline
+// via the server action's own requirePass() check, so there's no
+// separate gating branch needed in this page itself.
 
 import { getCurrentWeddingPlan } from "@/lib/session";
 import { ChatPanel } from "@/components/bisaai/ChatPanel";
@@ -31,7 +31,10 @@ export default async function BisaAIPage() {
 
       <div>
         <h2 className="mb-3 font-semibold text-akoma-ink">Pro tools</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
+        {/* pr-14 on mobile only: reserves room for the floating chat bubble
+            (fixed bottom-4 right-4), which otherwise overlaps this grid's
+            first card at typical scroll positions on narrow viewports. */}
+        <div className="grid gap-4 pr-14 sm:grid-cols-2 sm:pr-0">
           <ShoppingListTool weddingPlanId={weddingPlan!.id} />
           <DecorMoodboardTool weddingPlanId={weddingPlan!.id} />
           <HoneymoonTool weddingPlanId={weddingPlan!.id} />

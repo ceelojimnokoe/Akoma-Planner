@@ -1,7 +1,7 @@
 // src/server/actions/budget.ts
 //
-// Mutations for the Budget tool. Free-tier feature — no requirePro() gate
-// here at all (the basic budget calculator is fully usable without
+// Mutations for the Budget tool. Free-tier feature — no requirePass()
+// gate here at all (the basic budget calculator is fully usable without
 // payment, per the product's free-tier rules). Each action revalidates
 // both /budget and /dashboard since the dashboard shows a budget summary too.
 

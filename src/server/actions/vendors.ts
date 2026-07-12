@@ -1,8 +1,8 @@
 // src/server/actions/vendors.ts
 //
 // Mutations for vendor browsing and the vendor negotiation lifecycle.
-// Every action here that touches VendorInterest is Pro-gated (vendor
-// messaging/quote-tracking is a Pro tool) and is the ONLY code allowed to
+// Every action here that touches VendorInterest is gated behind the
+// Wedding Pass (vendor messaging/quote-tracking is a Pass tool) and is the ONLY code allowed to
 // write that table — lib/bisaai.ts only ever returns drafted text, never
 // persists it. Read the comment on each action for exactly which status
 // transition it performs; together they implement the "draft-and-approve,
@@ -23,12 +23,12 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requirePro } from "@/lib/plan";
+import { requirePass } from "@/lib/plan";
 import { draftVendorMessage, draftNegotiationMessage } from "@/lib/bisaai";
 
-async function requireProForWedding(weddingPlanId: string, featureLabel: string) {
+async function requirePassForWedding(weddingPlanId: string, featureLabel: string) {
   const weddingPlan = await prisma.weddingPlan.findUniqueOrThrow({ where: { id: weddingPlanId } });
-  return requirePro(weddingPlan.plan, featureLabel);
+  return requirePass(weddingPlan, featureLabel);
 }
 
 /** Creates a fresh DRAFT enquiry (or resets a DECLINED one back to DRAFT
@@ -38,7 +38,7 @@ export async function createDraftEnquiry(
   weddingPlanId: string,
   vendorId: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const gate = await requireProForWedding(weddingPlanId, "Vendor messaging");
+  const gate = await requirePassForWedding(weddingPlanId, "Vendor messaging");
   if (!gate.allowed) return { ok: false, error: gate.upgradeReason };
 
   const existing = await prisma.vendorInterest.findUnique({
@@ -75,7 +75,7 @@ export async function sendVendorMessage(input: {
   const parsed = sendSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Message can't be empty." };
 
-  const gate = await requireProForWedding(input.weddingPlanId, "Vendor messaging");
+  const gate = await requirePassForWedding(input.weddingPlanId, "Vendor messaging");
   if (!gate.allowed) return { ok: false, error: gate.upgradeReason };
 
   await prisma.vendorInterest.update({
@@ -105,7 +105,7 @@ export async function recordQuote(input: {
   const parsed = quoteSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
 
-  const gate = await requireProForWedding(input.weddingPlanId, "Vendor messaging");
+  const gate = await requirePassForWedding(input.weddingPlanId, "Vendor messaging");
   if (!gate.allowed) return { ok: false, error: gate.upgradeReason };
 
   await prisma.vendorInterest.update({
@@ -126,7 +126,7 @@ export async function approveQuote(input: {
   weddingPlanId: string;
   vendorId: string;
 }): Promise<{ ok: boolean; error?: string }> {
-  const gate = await requireProForWedding(input.weddingPlanId, "Vendor messaging");
+  const gate = await requirePassForWedding(input.weddingPlanId, "Vendor messaging");
   if (!gate.allowed) return { ok: false, error: gate.upgradeReason };
 
   await prisma.vendorInterest.update({ where: { id: input.vendorInterestId }, data: { status: "ACCEPTED" } });
@@ -139,7 +139,7 @@ export async function declineQuote(input: {
   weddingPlanId: string;
   vendorId: string;
 }): Promise<{ ok: boolean; error?: string }> {
-  const gate = await requireProForWedding(input.weddingPlanId, "Vendor messaging");
+  const gate = await requirePassForWedding(input.weddingPlanId, "Vendor messaging");
   if (!gate.allowed) return { ok: false, error: gate.upgradeReason };
 
   await prisma.vendorInterest.update({ where: { id: input.vendorInterestId }, data: { status: "DECLINED" } });
@@ -157,7 +157,7 @@ export async function getNegotiationDraft(input: {
   targetGHS?: number;
   notes?: string;
 }): Promise<{ ok: boolean; draftMessage?: string; error?: string }> {
-  const gate = await requireProForWedding(input.weddingPlanId, "Vendor negotiation drafting");
+  const gate = await requirePassForWedding(input.weddingPlanId, "Vendor negotiation drafting");
   if (!gate.allowed) return { ok: false, error: gate.upgradeReason };
 
   const result = await draftNegotiationMessage(input);
@@ -166,14 +166,14 @@ export async function getNegotiationDraft(input: {
 }
 
 /** Stubbed reminder — safe rule: never present a stub as a real send.
- *  Appends a visible note so the "save quotes/invoices/notes" Pro tool
+ *  Appends a visible note so the "save quotes/invoices/notes" Pass tool
  *  has something to show, but does not contact any vendor. */
 export async function sendReminderStub(input: {
   vendorInterestId: string;
   weddingPlanId: string;
   vendorId: string;
 }): Promise<{ ok: boolean; message?: string; error?: string }> {
-  const gate = await requireProForWedding(input.weddingPlanId, "Vendor reminders");
+  const gate = await requirePassForWedding(input.weddingPlanId, "Vendor reminders");
   if (!gate.allowed) return { ok: false, error: gate.upgradeReason };
 
   const interest = await prisma.vendorInterest.findUniqueOrThrow({ where: { id: input.vendorInterestId } });

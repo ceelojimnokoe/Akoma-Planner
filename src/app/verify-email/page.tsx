@@ -6,17 +6,17 @@
 // currently signed in, rather than silently pretending a real email/token
 // flow happened.
 
-import { getCurrentUser } from "@/lib/session";
+import { requireSession } from "@/lib/session";
 import { verifyEmailDemo } from "@/server/actions/auth";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { Card } from "@/components/ui/Card";
 import { Button, LinkButton } from "@/components/ui/Button";
-import { MockBadge } from "@/components/ui/Badge";
+import { DemoOnlyBadge } from "@/components/ui/Badge";
 
 export const dynamic = "force-dynamic";
 
 export default async function VerifyEmailPage() {
-  const user = await getCurrentUser();
+  const user = await requireSession();
 
   return (
     <div className="min-h-screen bg-akoma-cream">
@@ -24,7 +24,7 @@ export default async function VerifyEmailPage() {
       <main className="mx-auto max-w-md px-6 py-16 text-center">
         <Card>
           <div className="mb-3 flex justify-center">
-            <MockBadge />
+            <DemoOnlyBadge />
           </div>
           <h1 className="text-xl font-bold text-akoma-ink">Verify your email</h1>
           <p className="mt-2 text-sm text-akoma-ink/60">

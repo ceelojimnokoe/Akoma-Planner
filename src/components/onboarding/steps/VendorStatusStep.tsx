@@ -30,7 +30,20 @@ export function VendorStatusStep({ form, update }: StepProps) {
           <div key={c.value} className="flex items-center justify-between gap-3 rounded-lg border border-akoma-ink/10 px-3 py-2">
             <span className="flex items-center gap-2">
               <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full bg-akoma-cream">
-                <Image src={ONBOARDING_CATEGORY_IMAGES[c.value]} alt="" fill className="object-cover" />
+                {/* These source images are 400x300 card illustrations (see
+                    lib/vendor-images.ts) with the actual category glyph
+                    drawn inside a small centered circle — object-cover
+                    alone maps the image's full height into this 28px
+                    circle, so the glyph itself renders at only a few
+                    pixels. Scaling well past 100% crops in on that
+                    centered glyph instead of the whole illustration,
+                    without needing separate small-icon assets. */}
+                <Image
+                  src={ONBOARDING_CATEGORY_IMAGES[c.value]}
+                  alt=""
+                  fill
+                  className="scale-[2.1] object-cover"
+                />
               </span>
               <span className="text-sm font-medium text-akoma-ink">{c.label}</span>
             </span>

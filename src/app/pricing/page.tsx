@@ -16,7 +16,7 @@ export default function PricingPage() {
         <div className="mb-10 text-center">
           <h1 className="text-3xl font-bold text-akoma-ink">Simple, honest pricing</h1>
           <p className="mt-2 text-akoma-ink/60">
-            Free covers real wedding planning. Pro adds BisaAI&apos;s advanced tools and unlimited everything.
+            Free covers real wedding planning. The Wedding Pass unlocks the advanced tools — once, for good.
           </p>
         </div>
         <PricingCards />

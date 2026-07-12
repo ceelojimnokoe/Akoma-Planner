@@ -27,9 +27,10 @@ datasource db {
 // Enums
 // ---------------------------------------------------------------------------
 
-enum Plan {
-  FREE
-  PRO
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
 }
 
 enum City {
@@ -149,7 +150,11 @@ model WeddingPlan {
   city           City
   guestEstimate  Int
   tradition      String // free text, e.g. "Akan", "Ewe", "Interfaith" — not an enum, traditions are too varied to whitelist
-  plan           Plan     @default(FREE)
+  // One field, one meaning: paid once (see the Wedding Pass — a one-time
+  // GH¢300 purchase, not a subscription), has full access forever. No
+  // renewal/expiry concept — see lib/plan.ts's single canAccessPassFeatures()
+  // helper, the one place this field is ever read for gating.
+  hasWeddingPass Boolean  @default(false)
 
   // Non-guessable token used to build the public read-only share URL
   // (/w/[shareToken]). Regenerable from settings if it ever leaks.
@@ -167,9 +172,30 @@ model WeddingPlan {
   coupleProfile         CoupleProfile?
   vendorBookingStatuses VendorBookingStatus[]
   notifications         Notification[]
+  payments              Payment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// One row per payment attempt for the Wedding Pass — a real audit trail
+// (nothing like this existed for the old stubbed-subscription checkout).
+// `reference` is the provider's (Paystack) transaction reference, unique
+// so the webhook can safely upsert on it — a retried webhook delivery for
+// the same reference is a no-op, not a double-charge. `status` starts
+// PENDING when checkout redirects to the provider, and only becomes
+// SUCCESS from a server-verified confirmation (webhook or a server-side
+// verify call) — never from the browser alone. See Workstream C.
+model Payment {
+  id            String        @id @default(cuid())
+  weddingPlanId String
+  weddingPlan   WeddingPlan   @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
+  provider      String // e.g. "paystack"
+  reference     String        @unique
+  amountGHS     Float
+  currency      String        @default("GHS")
+  status        PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
 }
 
 // ---------------------------------------------------------------------------

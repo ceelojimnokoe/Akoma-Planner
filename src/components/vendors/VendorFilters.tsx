@@ -12,7 +12,7 @@ const CATEGORIES = [
   "MUSIC", "MAKEUP", "TRANSPORT", "CAKE", "OTHER",
 ] as const;
 
-export function VendorFilters({ category, city, plan }: { category?: string; city?: string; plan?: string }) {
+export function VendorFilters({ category, city, featured }: { category?: string; city?: string; featured?: string }) {
   return (
     <form method="get" className="flex flex-wrap items-end gap-3">
       <div>
@@ -35,17 +35,17 @@ export function VendorFilters({ category, city, plan }: { category?: string; cit
         </select>
       </div>
       <div>
-        <label className="mb-1 block text-xs font-medium text-akoma-ink/70">Plan</label>
-        <select name="plan" defaultValue={plan ?? ""} className={selectClasses}>
+        <label className="mb-1 block text-xs font-medium text-akoma-ink/70">Listing</label>
+        <select name="featured" defaultValue={featured ?? ""} className={selectClasses}>
           <option value="">All vendors</option>
-          <option value="FREE">Free</option>
-          <option value="PRO">Pro</option>
+          <option value="STANDARD">Standard</option>
+          <option value="FEATURED">Featured</option>
         </select>
       </div>
       <button type="submit" className="rounded-lg bg-akoma-green px-4 py-2 text-sm font-medium text-white hover:bg-akoma-green/90">
         Filter
       </button>
-      {(category || city || plan) && (
+      {(category || city || featured) && (
         <Link href="/vendors" className="text-sm text-akoma-ink/50 hover:underline">
           Clear
         </Link>

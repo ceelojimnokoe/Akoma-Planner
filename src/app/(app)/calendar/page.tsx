@@ -11,8 +11,9 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWeddingPlan } from "@/lib/session";
 import { getMonthGrid, isSameDay } from "@/lib/dates";
+import { canAccessPassFeatures } from "@/lib/plan";
 import { Card } from "@/components/ui/Card";
-import { Badge, ProBadge } from "@/components/ui/Badge";
+import { Badge, PassBadge } from "@/components/ui/Badge";
 import clsx from "clsx";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -44,7 +45,7 @@ export default async function CalendarPage({
     prisma.checklistItem.findMany({
       where: { weddingPlanId: weddingPlan!.id, dueDate: { gte: monthStart, lt: monthEnd } },
     }),
-    weddingPlan!.plan === "PRO"
+    canAccessPassFeatures(weddingPlan!)
       ? prisma.vendorInterest.findMany({
           where: { weddingPlanId: weddingPlan!.id, updatedAt: { gte: monthStart, lt: monthEnd } },
           include: { vendor: true },
@@ -76,9 +77,9 @@ export default async function CalendarPage({
         </div>
       </div>
 
-      {weddingPlan!.plan === "FREE" && (
+      {!canAccessPassFeatures(weddingPlan!) && (
         <div className="flex items-center gap-2 rounded-lg bg-akoma-gold/5 px-4 py-2 text-sm text-akoma-ink/70">
-          <ProBadge /> Pro adds vendor enquiry/quote activity to this calendar too.
+          <PassBadge /> The Wedding Pass adds vendor enquiry/quote activity to this calendar too.
         </div>
       )}
 
@@ -138,7 +139,7 @@ export default async function CalendarPage({
       <div className="flex flex-wrap gap-3 text-xs text-akoma-ink/50">
         <Badge tone="terracotta">Task due</Badge>
         <Badge tone="green">Task done</Badge>
-        {weddingPlan!.plan === "PRO" && <Badge tone="gold">Vendor activity</Badge>}
+        {canAccessPassFeatures(weddingPlan!) && <Badge tone="gold">Vendor activity</Badge>}
         <span>💍 Wedding day</span>
       </div>
     </div>

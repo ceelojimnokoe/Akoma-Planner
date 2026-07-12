@@ -9,7 +9,7 @@
 // adjusting one doesn't reset the other.
 
 import { getCurrentWeddingPlan } from "@/lib/session";
-import { requirePro } from "@/lib/plan";
+import { requirePass } from "@/lib/plan";
 import { generateTimeline, seatingSuggestions } from "@/lib/bisaai";
 import { Card } from "@/components/ui/Card";
 import { MockBadge } from "@/components/ui/Badge";
@@ -23,7 +23,7 @@ export default async function DesignToolsPage({
 }) {
   const { startTime: startTimeParam, tableSize: tableSizeParam } = await searchParams;
   const weddingPlan = await getCurrentWeddingPlan();
-  const gate = requirePro(weddingPlan!.plan, "Design tools");
+  const gate = requirePass(weddingPlan!, "Design tools");
 
   const startTime = startTimeParam ?? "09:00";
   const tableSize = tableSizeParam ? Number(tableSizeParam) : 10;

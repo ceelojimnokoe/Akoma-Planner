@@ -6,14 +6,14 @@
 // on screen, and it's clearly labelled a stub throughout.
 
 import { getCurrentWeddingPlan } from "@/lib/session";
-import { requirePro } from "@/lib/plan";
+import { requirePass } from "@/lib/plan";
 import { Card } from "@/components/ui/Card";
 import { UpgradePrompt } from "@/components/pro/UpgradePrompt";
 import { DressTryOnForm } from "@/components/dress-tryon/DressTryOnForm";
 
 export default async function DressTryOnPage() {
   const weddingPlan = await getCurrentWeddingPlan();
-  const gate = requirePro(weddingPlan!.plan, "Dress try-on");
+  const gate = requirePass(weddingPlan!, "Dress try-on");
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

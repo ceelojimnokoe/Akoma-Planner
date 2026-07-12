@@ -31,7 +31,7 @@ const FEATURES = [
   },
   {
     title: "Vendors across Accra & Kumasi",
-    body: "Browse real seeded vendors by category, with Pro comparison tools.",
+    body: "Browse real seeded vendors by category, with Wedding Pass comparison tools.",
   },
   {
     title: "BisaAI assistant",
@@ -97,7 +97,7 @@ export default async function LandingPage() {
               </LinkButton>
             )}
             <LinkButton href="/pricing" variant="ghost" size="lg">
-              See Pro Features
+              See the Wedding Pass
             </LinkButton>
           </div>
         </section>
@@ -152,7 +152,7 @@ export default async function LandingPage() {
       </main>
 
       <footer className="border-t border-akoma-ink/10 px-6 py-8 text-center text-sm text-akoma-ink/50">
-        AkomaPlanner — a wedding planning MVP for the Ghanaian market.
+        AkomaPlanner — wedding planning for the Ghanaian market.
       </footer>
     </div>
   );

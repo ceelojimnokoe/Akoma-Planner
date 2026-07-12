@@ -1,15 +1,15 @@
 // src/app/(app)/vendors/compare/page.tsx
 //
-// Pro comparison view: price range, rating, and city side by side for up
-// to 4 vendors selected from the browse grid. Gated with requirePro() —
-// a Free user can still select vendors and land here (the checkboxes on
-// /vendors are visible to everyone), they just see the upgrade prompt
-// instead of the table once they arrive.
+// Wedding Pass comparison view: price range, rating, and city side by
+// side for up to 4 vendors selected from the browse grid. Gated with
+// requirePass() — a Free user can still select vendors and land here
+// (the checkboxes on /vendors are visible to everyone), they just see
+// the upgrade prompt instead of the table once they arrive.
 
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWeddingPlan } from "@/lib/session";
-import { requirePro } from "@/lib/plan";
+import { requirePass } from "@/lib/plan";
 import { formatGHS } from "@/lib/currency";
 import { getVendorImage } from "@/lib/vendor-images";
 import { Card } from "@/components/ui/Card";
@@ -25,7 +25,7 @@ export default async function VendorComparePage({
 }) {
   const { ids } = await searchParams;
   const weddingPlan = await getCurrentWeddingPlan();
-  const gate = requirePro(weddingPlan!.plan, "The vendor comparison view");
+  const gate = requirePass(weddingPlan!, "The vendor comparison view");
 
   const vendorIds = ids?.split(",").filter(Boolean) ?? [];
   const vendors = vendorIds.length

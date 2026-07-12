@@ -362,7 +362,7 @@ async function seedSampleWedding(vendors: Awaited<ReturnType<typeof seedVendors>
       city: "ACCRA",
       guestEstimate: 250,
       tradition: "Akan",
-      plan: "FREE", // seeded as Free on purpose — see LEARNING.md: lets the paywall/gating be demoed immediately
+      hasWeddingPass: false, // seeded as Free on purpose — see LEARNING.md: lets the paywall/gating be demoed immediately
       ownerUserId: user.id,
       members: {
         create: { userId: user.id, role: "OWNER" },

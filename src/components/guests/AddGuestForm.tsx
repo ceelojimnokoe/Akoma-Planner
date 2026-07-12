@@ -80,7 +80,7 @@ export function AddGuestForm({ weddingPlanId }: { weddingPlanId: string }) {
         <div className="w-full rounded-lg bg-akoma-gold/10 px-3 py-2 text-sm text-akoma-ink">
           {error}{" "}
           <LinkButton href="/pricing" size="sm" variant="secondary" className="ml-2">
-            Upgrade to Pro
+            Get the Wedding Pass
           </LinkButton>
         </div>
       )}

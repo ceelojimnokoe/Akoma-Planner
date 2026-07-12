@@ -46,7 +46,7 @@ export function FloatingChatBubble({ weddingPlanId }: { weddingPlanId: string })
       <button
         onClick={() => setOpen(true)}
         aria-label="Open BisaAI chat"
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-akoma-green text-2xl text-white shadow-lg transition-transform hover:scale-105"
+        className="fixed bottom-4 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-akoma-green text-xl text-white shadow-lg transition-transform hover:scale-105 sm:bottom-6 sm:right-6 sm:h-14 sm:w-14 sm:text-2xl"
       >
         💬
       </button>
@@ -54,7 +54,7 @@ export function FloatingChatBubble({ weddingPlanId }: { weddingPlanId: string })
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 flex h-[26rem] w-80 flex-col overflow-hidden rounded-2xl border border-akoma-ink/10 bg-white shadow-xl">
+    <div className="fixed bottom-4 right-4 z-40 flex h-[26rem] w-[calc(100vw-2rem)] max-w-80 flex-col overflow-hidden rounded-2xl border border-akoma-ink/10 bg-white shadow-xl sm:bottom-6 sm:right-6">
       <div className="flex items-center justify-between border-b border-akoma-ink/10 bg-akoma-green px-4 py-3">
         <span className="font-medium text-white">BisaAI</span>
         <button onClick={() => setOpen(false)} aria-label="Close chat" className="text-white/80 hover:text-white">

@@ -102,10 +102,14 @@ export function emptyOnboardingForm(prefillName?: string): OnboardingFormData {
     isDiaspora: false,
 
     theme: "",
-    // Pre-filled with the first preset's primary (see lib/wedding-palettes.ts)
-    // so the picker never opens on a jarring default black — the couple can
-    // still change it freely, this is just a friendlier starting point.
-    primaryColor: "#87A96B",
+    // Empty, not pre-filled — ColorPaletteField's own display-only fallback
+    // (`primaryColor || "#87A96B"`) already keeps the picker from opening on
+    // a jarring black default, without writing a value into form state the
+    // couple never actually chose. A non-empty default here used to make
+    // the dashboard's "Your wedding style" card appear even for couples who
+    // skipped this whole step — see hasStyleInfo in dashboard/page.tsx,
+    // which treats primaryColor as the signal that style info was set.
+    primaryColor: "",
     secondaryColor: "",
     dressCode: "",
     visionNotes: "",

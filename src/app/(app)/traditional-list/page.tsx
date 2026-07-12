@@ -7,7 +7,7 @@
 // or Budget pages, not a click-to-generate widget.
 
 import { getCurrentWeddingPlan } from "@/lib/session";
-import { requirePro } from "@/lib/plan";
+import { requirePass } from "@/lib/plan";
 import { priceTraditionalList } from "@/lib/bisaai";
 import { formatGHS } from "@/lib/currency";
 import { Card } from "@/components/ui/Card";
@@ -22,7 +22,7 @@ export default async function TraditionalListPage({
 }) {
   const { city: cityParam } = await searchParams;
   const weddingPlan = await getCurrentWeddingPlan();
-  const gate = requirePro(weddingPlan!.plan, "The traditional list pricing tool");
+  const gate = requirePass(weddingPlan!, "The traditional list pricing tool");
 
   const city = (cityParam as City) ?? weddingPlan!.city;
 

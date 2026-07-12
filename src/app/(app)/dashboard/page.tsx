@@ -232,7 +232,14 @@ export default async function DashboardPage() {
           )}
         </Card>
 
-        <Card>
+        {/* sm:pr-20: this card sits at the bottom-right of a mid-page row —
+            well before the true bottom of the dashboard — so the floating
+            chat bubble (fixed to the viewport corner, not to page content)
+            can otherwise land on top of its last row's amounts at typical
+            scroll positions. Scoped to just this card rather than the
+            whole page, since the dashboard's *other* rows (the top stat
+            grid especially) don't have room to spare — see (app)/layout.tsx. */}
+        <Card className="sm:pr-20">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-semibold text-akoma-ink">Budget by category</h2>
             <Link
@@ -278,7 +285,9 @@ export default async function DashboardPage() {
         <div className="lg:col-span-2">
           <VendorStatusCard statuses={vendorBookingStatuses} />
         </div>
-        <div className="flex flex-col gap-6">
+        {/* Same sm:pr-20 reasoning as "Budget by category" above — this
+            column's cards sit at the row's right edge, in the bubble's path. */}
+        <div className="flex flex-col gap-6 sm:pr-20">
           <GuestProgressCard
             confirmedAttendees={guestStats.confirmedAttendees}
             guestEstimate={weddingPlan!.guestEstimate}

@@ -117,7 +117,7 @@ export function VendorInterestPanel({
             <p className="mt-1 text-sm text-akoma-ink/70">Accepted quote: {formatGHS(interest.quoteAmountGHS)}</p>
           )}
           <p className="mt-2 text-xs text-akoma-ink/50">
-            Payment/deposit is handled outside the app — this MVP has no real payment integration (see Pricing page).
+            Payment/deposit is handled outside the app — there&apos;s no in-app payment integration yet.
           </p>
         </div>
       )}

@@ -1,12 +1,12 @@
 // src/app/(app)/guests/page.tsx
 //
 // The Guest List tool: RSVP tracking by side, capped at 100 guests on the
-// Free plan (unlimited on Pro — see lib/plan.ts canAddGuest, enforced in
-// the addGuest server action).
+// Free plan (unlimited with the Wedding Pass — see lib/plan.ts
+// canAddGuest, enforced in the addGuest server action).
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentWeddingPlan } from "@/lib/session";
-import { FREE_LIMITS } from "@/lib/plan";
+import { FREE_LIMITS, canAccessPassFeatures } from "@/lib/plan";
 import { calculateGuestStats } from "@/lib/guests";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Card } from "@/components/ui/Card";
@@ -26,10 +26,9 @@ export default async function GuestsPage() {
   // The Free-plan cap is on guest *rows*, not attendee headcount — see
   // lib/guests.ts — so this stays on totalRecords even though every stat
   // card below is attendee-based.
-  const capLabel =
-    weddingPlan!.plan === "FREE"
-      ? `${stats.totalRecords} of ${FREE_LIMITS.maxGuests} (Free plan)`
-      : `${stats.totalRecords} (unlimited on Pro)`;
+  const capLabel = !canAccessPassFeatures(weddingPlan!)
+    ? `${stats.totalRecords} of ${FREE_LIMITS.maxGuests} (Free plan)`
+    : `${stats.totalRecords} (unlimited with the Wedding Pass)`;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">

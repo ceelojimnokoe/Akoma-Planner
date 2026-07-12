@@ -1,12 +1,12 @@
 // src/components/layout/Sidebar.tsx
 //
 // The app's primary navigation. Every feature described in the product
-// spec has a nav entry here, whether or not the current plan can use it —
-// Pro-only tools stay visible with a Pro badge rather than being hidden,
-// so the upgrade value is always obvious (the page behind the link does
-// the actual gating via requirePro()) — UNLESS the account is already on
-// Pro, in which case the badges would just be advertising a purchase
-// that's already made, so they're hidden.
+// spec has a nav entry here, whether or not the account has the Wedding
+// Pass yet — Pass-only tools stay visible with a badge rather than being
+// hidden, so the upgrade value is always obvious (the page behind the
+// link does the actual gating via requirePass()) — UNLESS the account
+// already has the Pass, in which case the badges would just be
+// advertising a purchase that's already made, so they're hidden.
 //
 // Sign out lives here (footer, always visible, one click) rather than
 // buried a page away — matches the Linear/Notion/Vercel-style pattern of
@@ -23,7 +23,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { ProBadge } from "@/components/ui/Badge";
+import { PassBadge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Logo } from "@/components/ui/Logo";
 import { signOut } from "@/server/actions/auth";
@@ -31,7 +31,7 @@ import { signOut } from "@/server/actions/auth";
 interface NavItem {
   href: string;
   label: string;
-  proOnly?: boolean;
+  passOnly?: boolean;
 }
 
 const CORE_ITEMS: NavItem[] = [
@@ -43,15 +43,15 @@ const CORE_ITEMS: NavItem[] = [
   { href: "/bisaai", label: "BisaAI" },
   { href: "/calendar", label: "Calendar" },
   // Accommodation is free (see LEARNING.md) — lives with the core items,
-  // not the Pro section below, so its nav placement matches its gating.
+  // not the Wedding Pass section below, so its nav placement matches its gating.
   { href: "/accommodation", label: "Accommodation" },
 ];
 
-const PRO_ITEMS: NavItem[] = [
-  { href: "/traditional-list", label: "Traditional List", proOnly: true },
-  { href: "/dress-tryon", label: "Dress Try-On", proOnly: true },
-  { href: "/collaboration", label: "Collaboration", proOnly: true },
-  { href: "/design", label: "Design Tools", proOnly: true },
+const PASS_ITEMS: NavItem[] = [
+  { href: "/traditional-list", label: "Traditional List", passOnly: true },
+  { href: "/dress-tryon", label: "Dress Try-On", passOnly: true },
+  { href: "/collaboration", label: "Collaboration", passOnly: true },
+  { href: "/design", label: "Design Tools", passOnly: true },
 ];
 
 export interface SidebarUser {
@@ -59,26 +59,26 @@ export interface SidebarUser {
   profilePictureUrl: string | null;
 }
 
-export function Sidebar({ user, plan }: { user: SidebarUser; plan: "FREE" | "PRO" }) {
+export function Sidebar({ user, hasWeddingPass }: { user: SidebarUser; hasWeddingPass: boolean }) {
   return (
     <aside className="hidden w-64 shrink-0 border-r border-akoma-ink/10 bg-white sm:flex sm:flex-col">
-      <SidebarContent user={user} plan={plan} />
+      <SidebarContent user={user} hasWeddingPass={hasWeddingPass} />
     </aside>
   );
 }
 
 export function SidebarContent({
   user,
-  plan,
+  hasWeddingPass,
   onNavigate,
 }: {
   user: SidebarUser;
-  plan: "FREE" | "PRO";
+  hasWeddingPass: boolean;
   /** Called after any nav link is clicked — MobileNavDrawer uses this to close itself. */
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const showProBadges = plan !== "PRO";
+  const showPassBadges = !hasWeddingPass;
 
   return (
     <>
@@ -87,18 +87,18 @@ export function SidebarContent({
       </Link>
       <nav className="flex-1 space-y-1 px-3">
         {CORE_ITEMS.map((item) => (
-          <NavLink key={item.href} item={item} active={pathname.startsWith(item.href)} showProBadges={showProBadges} onNavigate={onNavigate} />
+          <NavLink key={item.href} item={item} active={pathname.startsWith(item.href)} showPassBadges={showPassBadges} onNavigate={onNavigate} />
         ))}
         <div className="my-3 border-t border-akoma-ink/10" />
-        {PRO_ITEMS.map((item) => (
-          <NavLink key={item.href} item={item} active={pathname.startsWith(item.href)} showProBadges={showProBadges} onNavigate={onNavigate} />
+        {PASS_ITEMS.map((item) => (
+          <NavLink key={item.href} item={item} active={pathname.startsWith(item.href)} showPassBadges={showPassBadges} onNavigate={onNavigate} />
         ))}
       </nav>
       <div className="space-y-1 px-3 pb-3">
         <div className="my-3 border-t border-akoma-ink/10" />
-        <NavLink item={{ href: "/pricing", label: "Pricing" }} active={pathname.startsWith("/pricing")} showProBadges={showProBadges} onNavigate={onNavigate} />
-        <NavLink item={{ href: "/profile", label: "Profile" }} active={pathname.startsWith("/profile")} showProBadges={showProBadges} onNavigate={onNavigate} />
-        <NavLink item={{ href: "/settings", label: "Settings" }} active={pathname.startsWith("/settings")} showProBadges={showProBadges} onNavigate={onNavigate} />
+        <NavLink item={{ href: "/pricing", label: "Pricing" }} active={pathname.startsWith("/pricing")} showPassBadges={showPassBadges} onNavigate={onNavigate} />
+        <NavLink item={{ href: "/profile", label: "Profile" }} active={pathname.startsWith("/profile")} showPassBadges={showPassBadges} onNavigate={onNavigate} />
+        <NavLink item={{ href: "/settings", label: "Settings" }} active={pathname.startsWith("/settings")} showPassBadges={showPassBadges} onNavigate={onNavigate} />
       </div>
       <div className="border-t border-akoma-ink/10 p-3">
         <div className="mb-2 flex items-center gap-2 px-1">
@@ -121,12 +121,12 @@ export function SidebarContent({
 function NavLink({
   item,
   active,
-  showProBadges,
+  showPassBadges,
   onNavigate,
 }: {
   item: NavItem;
   active: boolean;
-  showProBadges: boolean;
+  showPassBadges: boolean;
   onNavigate?: () => void;
 }) {
   return (
@@ -139,7 +139,7 @@ function NavLink({
       )}
     >
       <span>{item.label}</span>
-      {item.proOnly && showProBadges && <ProBadge />}
+      {item.passOnly && showPassBadges && <PassBadge />}
     </Link>
   );
 }

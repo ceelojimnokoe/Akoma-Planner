@@ -6,10 +6,11 @@
 // distinction from LEARNING.md #1.
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentWeddingPlan } from "@/lib/session";
+import { getCurrentWeddingPlan, requireSession } from "@/lib/session";
 import { generateSchedulePdf } from "@/lib/pdf";
 
 export async function GET() {
+  await requireSession();
   const weddingPlan = await getCurrentWeddingPlan();
   if (!weddingPlan) return new Response("No wedding plan found", { status: 404 });
 

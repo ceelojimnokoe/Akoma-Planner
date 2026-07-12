@@ -63,7 +63,7 @@ export async function addChecklistItem(input: {
   const customItemCount = await prisma.checklistItem.count({
     where: { weddingPlanId: parsed.data.weddingPlanId, isDefault: false },
   });
-  const gate = canAddChecklistItem(weddingPlan.plan, customItemCount);
+  const gate = canAddChecklistItem(weddingPlan, customItemCount);
   if (!gate.allowed) return { ok: false, error: gate.upgradeReason };
 
   await prisma.checklistItem.create({

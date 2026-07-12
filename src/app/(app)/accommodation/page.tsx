@@ -69,7 +69,10 @@ export default async function AccommodationPage({
       {accommodations.length === 0 ? (
         <p className="py-8 text-center text-sm text-akoma-ink/50">No accommodation listings for this city yet.</p>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        // sm:pr-20: keeps the rightmost card in each row clear of the
+        // floating chat bubble (fixed to the viewport corner) — see the
+        // matching comment on dashboard's "Budget by category" card.
+        <div className="grid gap-6 pr-0 sm:grid-cols-2 sm:pr-20 lg:grid-cols-3">
           {accommodations.map((a) => {
             const amenities = a.amenities ? a.amenities.split(",").map((s) => s.trim()).filter(Boolean) : [];
             return (

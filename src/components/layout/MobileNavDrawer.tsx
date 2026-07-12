@@ -10,7 +10,7 @@
 import { useEffect, useState } from "react";
 import { SidebarContent, type SidebarUser } from "@/components/layout/Sidebar";
 
-export function MobileNavDrawer({ user, plan }: { user: SidebarUser; plan: "FREE" | "PRO" }) {
+export function MobileNavDrawer({ user, hasWeddingPass }: { user: SidebarUser; hasWeddingPass: boolean }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export function MobileNavDrawer({ user, plan }: { user: SidebarUser; plan: "FREE
         <div className="fixed inset-0 z-[60] sm:hidden">
           <div className="absolute inset-0 bg-akoma-ink/40" onClick={() => setOpen(false)} aria-hidden="true" />
           <div className="absolute inset-y-0 left-0 flex w-64 flex-col bg-white shadow-xl" role="dialog" aria-modal="true" aria-label="Navigation">
-            <SidebarContent user={user} plan={plan} onNavigate={() => setOpen(false)} />
+            <SidebarContent user={user} hasWeddingPass={hasWeddingPass} onNavigate={() => setOpen(false)} />
           </div>
         </div>
       )}

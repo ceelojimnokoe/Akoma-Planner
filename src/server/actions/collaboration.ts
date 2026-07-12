@@ -1,7 +1,8 @@
 // src/server/actions/collaboration.ts
 //
 // Mutations for the Collaboration tool: adding/removing WeddingMember
-// rows, and regenerating the public share token. Pro-gated throughout.
+// rows, and regenerating the public share token. Gated behind the
+// Wedding Pass throughout.
 //
 // IMPORTANT MVP LIMITATION, stated plainly rather than glossed over:
 // there is no real invite/auth flow. "Adding" a fiancé or planner here
@@ -17,11 +18,11 @@ import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requirePro } from "@/lib/plan";
+import { requirePass } from "@/lib/plan";
 
-async function requireProForWedding(weddingPlanId: string, featureLabel: string) {
+async function requirePassForWedding(weddingPlanId: string, featureLabel: string) {
   const weddingPlan = await prisma.weddingPlan.findUniqueOrThrow({ where: { id: weddingPlanId } });
-  return requirePro(weddingPlan.plan, featureLabel);
+  return requirePass(weddingPlan, featureLabel);
 }
 
 const addCollaboratorSchema = z.object({
@@ -40,7 +41,7 @@ export async function addCollaborator(input: {
   const parsed = addCollaboratorSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
 
-  const gate = await requireProForWedding(input.weddingPlanId, "Collaboration");
+  const gate = await requirePassForWedding(input.weddingPlanId, "Collaboration");
   if (!gate.allowed) return { ok: false, error: gate.upgradeReason };
 
   const user = await prisma.user.upsert({
@@ -63,7 +64,7 @@ export async function addCollaborator(input: {
 }
 
 export async function removeCollaborator(memberId: string, weddingPlanId: string): Promise<{ ok: boolean; error?: string }> {
-  const gate = await requireProForWedding(weddingPlanId, "Collaboration");
+  const gate = await requirePassForWedding(weddingPlanId, "Collaboration");
   if (!gate.allowed) return { ok: false, error: gate.upgradeReason };
 
   const member = await prisma.weddingMember.findUniqueOrThrow({ where: { id: memberId } });
@@ -75,7 +76,7 @@ export async function removeCollaborator(memberId: string, weddingPlanId: string
 }
 
 export async function regenerateShareToken(weddingPlanId: string): Promise<{ ok: boolean; error?: string }> {
-  const gate = await requireProForWedding(weddingPlanId, "Collaboration");
+  const gate = await requirePassForWedding(weddingPlanId, "Collaboration");
   if (!gate.allowed) return { ok: false, error: gate.upgradeReason };
 
   await prisma.weddingPlan.update({ where: { id: weddingPlanId }, data: { shareToken: randomUUID() } });

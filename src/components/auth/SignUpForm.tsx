@@ -9,7 +9,6 @@ import type { SignUpInput } from "@/lib/validation/auth";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { SocialLoginButtons } from "@/components/auth/SocialLoginButtons";
 
 const emptyForm: SignUpInput = { name: "", email: "", password: "", confirmPassword: "" };
 
@@ -70,14 +69,6 @@ export function SignUpForm() {
       <Button type="submit" disabled={isPending} className="w-full">
         {isPending ? "Creating your account…" : "Create account"}
       </Button>
-
-      <div className="flex items-center gap-3 text-xs text-akoma-ink/40">
-        <div className="h-px flex-1 bg-akoma-ink/10" />
-        or
-        <div className="h-px flex-1 bg-akoma-ink/10" />
-      </div>
-
-      <SocialLoginButtons />
 
       <p className="text-center text-sm text-akoma-ink/60">
         Already have an account?{" "}

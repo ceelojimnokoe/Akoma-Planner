@@ -57,7 +57,10 @@ export async function createWeddingPlan(rawInput: OnboardingInput): Promise<Crea
   // here too, since a server action must never trust the caller skipped
   // a check the UI happens to also perform.
   const existingCount = await prisma.weddingPlan.count({ where: { ownerUserId: user.id } });
-  const gate = canCreateWeddingPlan("FREE", existingCount);
+  // No WeddingPlan row exists yet at this point (that's what's being
+  // checked — whether the user may create one) — hasWeddingPass lives on
+  // WeddingPlan, so a brand-new user never has it yet, definitionally.
+  const gate = canCreateWeddingPlan({ hasWeddingPass: false }, existingCount);
   if (!gate.allowed) {
     return { ok: false, error: gate.upgradeReason };
   }

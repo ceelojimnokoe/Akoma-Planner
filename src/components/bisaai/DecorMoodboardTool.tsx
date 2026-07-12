@@ -18,7 +18,7 @@ export function DecorMoodboardTool({ weddingPlanId }: { weddingPlanId: string })
   }
 
   return (
-    <ToolCard title="Decor moodboard" description="A quick style direction to react to — experimental stub, not real generated images.">
+    <ToolCard title="Decor moodboard" description="A quick style direction to react to — experimental, not real generated images.">
       <div className="flex flex-wrap gap-2">
         <input
           type="text"

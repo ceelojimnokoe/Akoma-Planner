@@ -7,7 +7,7 @@
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWeddingPlan } from "@/lib/session";
-import { requirePro } from "@/lib/plan";
+import { requirePass } from "@/lib/plan";
 import { Card } from "@/components/ui/Card";
 import { UpgradePrompt } from "@/components/pro/UpgradePrompt";
 import { MemberList } from "@/components/collaboration/MemberList";
@@ -15,7 +15,7 @@ import { ShareLinkPanel } from "@/components/collaboration/ShareLinkPanel";
 
 export default async function CollaborationPage() {
   const weddingPlan = await getCurrentWeddingPlan();
-  const gate = requirePro(weddingPlan!.plan, "Collaboration");
+  const gate = requirePass(weddingPlan!, "Collaboration");
 
   const members = gate.allowed
     ? await prisma.weddingMember.findMany({

@@ -105,8 +105,8 @@ export function MemberList({ weddingPlanId, members }: { weddingPlanId: string; 
           </Button>
         </div>
         <p className="text-xs text-akoma-ink/40">
-          This adds them as a collaborator record right away — this MVP doesn&apos;t send a real invite email or have
-          separate logins yet (see README).
+          This adds them as a collaborator record right away — it doesn&apos;t send a real invite email or give them
+          their own login yet.
         </p>
         {error && <p className="text-sm text-akoma-terracotta">{error}</p>}
       </form>

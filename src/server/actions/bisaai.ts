@@ -9,7 +9,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requirePro } from "@/lib/plan";
+import { requirePass } from "@/lib/plan";
 import * as bisaai from "@/lib/bisaai";
 
 async function getWeddingPlan(weddingPlanId: string) {
@@ -22,14 +22,14 @@ export async function askBasicQA(weddingPlanId: string, question: string) {
 
 export async function runShoppingList(weddingPlanId: string) {
   const plan = await getWeddingPlan(weddingPlanId);
-  const gate = requirePro(plan.plan, "The AI shopping list");
+  const gate = requirePass(plan, "The AI shopping list");
   if (!gate.allowed) return { ok: false as const, error: gate.upgradeReason };
   return bisaai.generateShoppingList({ weddingPlanId, guestEstimate: plan.guestEstimate });
 }
 
 export async function runDecorMoodboard(weddingPlanId: string, style: string, colorPalette: string) {
   const plan = await getWeddingPlan(weddingPlanId);
-  const gate = requirePro(plan.plan, "The decor moodboard generator");
+  const gate = requirePass(plan, "The decor moodboard generator");
   if (!gate.allowed) return { ok: false as const, error: gate.upgradeReason };
   return bisaai.decorMoodboard({
     weddingPlanId,
@@ -40,28 +40,28 @@ export async function runDecorMoodboard(weddingPlanId: string, style: string, co
 
 export async function runHoneymoonRecommendations(weddingPlanId: string, budgetGHS?: number) {
   const plan = await getWeddingPlan(weddingPlanId);
-  const gate = requirePro(plan.plan, "Honeymoon recommendations");
+  const gate = requirePass(plan, "Honeymoon recommendations");
   if (!gate.allowed) return { ok: false as const, error: gate.upgradeReason };
   return bisaai.honeymoonRecommendations({ weddingPlanId, budgetGHS });
 }
 
 export async function runSuggestHashtags(weddingPlanId: string) {
   const plan = await getWeddingPlan(weddingPlanId);
-  const gate = requirePro(plan.plan, "Hashtag suggestions");
+  const gate = requirePass(plan, "Hashtag suggestions");
   if (!gate.allowed) return { ok: false as const, error: gate.upgradeReason };
   return bisaai.suggestHashtags({ weddingPlanId });
 }
 
 export async function runGenerateSocialPost(weddingPlanId: string, platform: "instagram" | "facebook") {
   const plan = await getWeddingPlan(weddingPlanId);
-  const gate = requirePro(plan.plan, "Social post generation");
+  const gate = requirePass(plan, "Social post generation");
   if (!gate.allowed) return { ok: false as const, error: gate.upgradeReason };
   return bisaai.generateSocialPost({ weddingPlanId, platform });
 }
 
 export async function runDraftEmailInvite(weddingPlanId: string, guestName: string) {
   const plan = await getWeddingPlan(weddingPlanId);
-  const gate = requirePro(plan.plan, "Email invite drafting");
+  const gate = requirePass(plan, "Email invite drafting");
   if (!gate.allowed) return { ok: false as const, error: gate.upgradeReason };
   return bisaai.draftEmailInvite({ weddingPlanId, guestName: guestName || undefined });
 }
@@ -71,7 +71,7 @@ export async function runDraftEmailInvite(weddingPlanId: string, guestName: stri
 // forwards the consent flag and an optional style label.
 export async function runDressTryOn(weddingPlanId: string, consentGiven: boolean, dressStyle: string) {
   const plan = await getWeddingPlan(weddingPlanId);
-  const gate = requirePro(plan.plan, "Dress try-on");
+  const gate = requirePass(plan, "Dress try-on");
   if (!gate.allowed) return { ok: false as const, error: gate.upgradeReason };
   return bisaai.dressTryOn({ weddingPlanId, consentGiven, dressStyle: dressStyle || undefined });
 }

@@ -13,7 +13,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
-import { MockBadge } from "@/components/ui/Badge";
+import { DemoOnlyBadge } from "@/components/ui/Badge";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -28,7 +28,7 @@ export default function ForgotPasswordPage() {
         </div>
         <Card>
           <div className="mb-4 flex justify-center">
-            <MockBadge />
+            <DemoOnlyBadge />
           </div>
           {submitted ? (
             <p className="text-center text-sm text-akoma-ink">

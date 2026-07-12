@@ -13,7 +13,7 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWeddingPlan } from "@/lib/session";
-import { requirePro } from "@/lib/plan";
+import { requirePass, canAccessPassFeatures } from "@/lib/plan";
 import { formatGHS } from "@/lib/currency";
 import { getVendorImage } from "@/lib/vendor-images";
 import { Card } from "@/components/ui/Card";
@@ -28,8 +28,8 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ v
   const vendor = await prisma.vendor.findUnique({ where: { id: vendorId } });
   if (!vendor) notFound();
 
-  const locked = vendor.isProFeatured && weddingPlan!.plan === "FREE";
-  const messagingGate = requirePro(weddingPlan!.plan, "Vendor messaging and quote tracking");
+  const locked = vendor.isProFeatured && !canAccessPassFeatures(weddingPlan!);
+  const messagingGate = requirePass(weddingPlan!, "Vendor messaging and quote tracking");
 
   const interest = await prisma.vendorInterest.findUnique({
     where: { weddingPlanId_vendorId: { weddingPlanId: weddingPlan!.id, vendorId } },
