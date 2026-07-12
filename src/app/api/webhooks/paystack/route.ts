@@ -14,6 +14,7 @@
 // already handled. Safe to receive the same event more than once:
 // confirmPaymentSuccess() is idempotent on Payment.reference.
 
+import { revalidatePath } from "next/cache";
 import { verifyWebhookSignature } from "@/lib/payments/paystack";
 import { confirmPaymentSuccess } from "@/server/actions/billing";
 
@@ -34,6 +35,12 @@ export async function POST(request: Request) {
 
   if (event.event === "charge.success" && event.data?.reference) {
     await confirmPaymentSuccess(event.data.reference);
+    // Safe here (a Route Handler, not a render) — see confirmPaymentSuccess's
+    // own comment on why it doesn't call this itself. Matters most for this
+    // path specifically: the webhook can arrive while the browser is sitting
+    // on an already-open, already-rendered tab, unlike the checkout callback
+    // page's own always-fresh next navigation.
+    revalidatePath("/", "layout");
   }
 
   return Response.json({ received: true });

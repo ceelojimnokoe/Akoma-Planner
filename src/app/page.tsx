@@ -2,19 +2,18 @@
 //
 // Public marketing landing page — the first thing a visitor sees, whether
 // or not they're signed in. Mostly static, but the nav/hero CTAs are
-// session-aware: getCurrentUser() always resolves to *someone* (falls
-// back to the seeded stub — see lib/session.ts), so "signed in" here
-// specifically means "a real session cookie exists," checked directly via
-// getSessionUserId() rather than getCurrentUser(). No feature claims here
-// should overstate what exists elsewhere in the app; the safety
-// commitments section in particular has to stay accurate as features get
-// built.
+// session-aware: getCurrentUserOrNull() (unlike getCurrentUser()) never
+// redirects, so this page can render for signed-out visitors too while
+// still tailoring its CTA for a real, currently-signed-in Supabase
+// session. No feature claims here should overstate what exists elsewhere
+// in the app; the safety commitments section in particular has to stay
+// accurate as features get built.
 
 import { LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Logo } from "@/components/ui/Logo";
-import { getSessionUserId } from "@/lib/auth";
+import { getCurrentUserOrNull } from "@/lib/session";
 
 const FEATURES = [
   {
@@ -44,7 +43,7 @@ const FEATURES = [
 ];
 
 export default async function LandingPage() {
-  const isSignedIn = (await getSessionUserId()) !== null;
+  const isSignedIn = (await getCurrentUserOrNull()) !== null;
 
   return (
     <div className="min-h-screen">

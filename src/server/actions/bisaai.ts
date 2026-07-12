@@ -2,9 +2,9 @@
 //
 // Thin Server Action wrappers around src/lib/bisaai.ts for the BisaAI
 // chat/tools page. This is the one place plan-gating happens for these
-// specific tools — lib/bisaai.ts itself has no concept of Free vs Pro (see
+// specific tools — lib/bisaai.ts itself has no concept of Free vs Pass (see
 // the header comment in that file). basicQA is the only function here
-// that's free; every other tool requires Pro.
+// that's free; every other tool requires the Pass.
 
 "use server";
 
@@ -16,8 +16,13 @@ async function getWeddingPlan(weddingPlanId: string) {
   return prisma.weddingPlan.findUniqueOrThrow({ where: { id: weddingPlanId } });
 }
 
-export async function askBasicQA(weddingPlanId: string, question: string) {
-  return bisaai.basicQA({ weddingPlanId, question });
+export async function askBasicQA(weddingPlanId: string, question: string, recentQuestions?: string[]) {
+  return bisaai.basicQA({ weddingPlanId, question, recentQuestions });
+}
+
+/** Free tier, same as basicQA — see lib/bisaai.ts's getProactiveSuggestions. */
+export async function getSuggestions(weddingPlanId: string) {
+  return bisaai.getProactiveSuggestions(weddingPlanId);
 }
 
 export async function runShoppingList(weddingPlanId: string) {

@@ -2,7 +2,7 @@
 //
 // The Checklist tool: default Ghana-relevant tasks plus any custom ones,
 // grouped by category, with a progress summary. Free-tier feature — the
-// one Pro distinction (unlimited custom tasks vs. a capped number) is
+// one Pass distinction (unlimited custom tasks vs. a capped number) is
 // enforced in the addChecklistItem server action, not here.
 
 import { prisma } from "@/lib/prisma";

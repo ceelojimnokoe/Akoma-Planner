@@ -1,6 +1,6 @@
 // src/app/(app)/dress-tryon/page.tsx
 //
-// Pro, experimental. See safe rule #2 in the project brief and the
+// Pass, experimental. See safe rule #2 in the project brief and the
 // header comment on lib/bisaai.ts's dressTryOn() — this page's job is
 // mostly to make that rule visible: consent required, disclaimer always
 // on screen, and it's clearly labelled a stub throughout.
@@ -8,7 +8,7 @@
 import { getCurrentWeddingPlan } from "@/lib/session";
 import { requirePass } from "@/lib/plan";
 import { Card } from "@/components/ui/Card";
-import { UpgradePrompt } from "@/components/pro/UpgradePrompt";
+import { UpgradePrompt } from "@/components/upgrade/UpgradePrompt";
 import { DressTryOnForm } from "@/components/dress-tryon/DressTryOnForm";
 
 export default async function DressTryOnPage() {

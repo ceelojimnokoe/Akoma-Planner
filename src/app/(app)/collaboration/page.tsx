@@ -1,6 +1,6 @@
 // src/app/(app)/collaboration/page.tsx
 //
-// Pro tool: manage who else can see this wedding plan, and the public
+// Pass tool: manage who else can see this wedding plan, and the public
 // read-only share link. See MemberList/ShareLinkPanel and
 // server/actions/collaboration.ts for the actual logic.
 
@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentWeddingPlan } from "@/lib/session";
 import { requirePass } from "@/lib/plan";
 import { Card } from "@/components/ui/Card";
-import { UpgradePrompt } from "@/components/pro/UpgradePrompt";
+import { UpgradePrompt } from "@/components/upgrade/UpgradePrompt";
 import { MemberList } from "@/components/collaboration/MemberList";
 import { ShareLinkPanel } from "@/components/collaboration/ShareLinkPanel";
 

@@ -1,16 +1,16 @@
 // src/app/(app)/vendors/page.tsx
 //
 // Vendor browse/filter screen. Browsing is a free-tier feature — every
-// vendor (including Pro-featured ones) is listed, but VendorCard hides
-// pricing/rating/description behind a lock for Pro-featured listings on
-// a Free plan. Filtering is a plain GET form (see VendorFilters).
+// vendor (including featured ones) is listed, but VendorCard hides
+// pricing/rating/description behind a lock for featured listings on a
+// Free plan. Filtering is a plain GET form (see VendorFilters).
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentWeddingPlan } from "@/lib/session";
 import { VendorFilters } from "@/components/vendors/VendorFilters";
 import { VendorGrid } from "@/components/vendors/VendorGrid";
 import { LinkButton } from "@/components/ui/Button";
-import { ProBadge } from "@/components/ui/Badge";
+import { PassBadge } from "@/components/ui/Badge";
 import type { City, VendorCategory } from "@prisma/client";
 
 export default async function VendorsPage({
@@ -26,7 +26,7 @@ export default async function VendorsPage({
       ...(category ? { category: category as VendorCategory } : {}),
       ...(city ? { city: city as City } : {}),
       // "Featured"/"Standard" here means whether the LISTING itself is
-      // Pro-featured (isProFeatured) — not the viewer's own Wedding Pass
+      // featured (isProFeatured) — not the viewer's own Wedding Pass
       // status, which is a separate gate (see `locked` below).
       ...(featured === "FEATURED" ? { isProFeatured: true } : featured === "STANDARD" ? { isProFeatured: false } : {}),
     },
@@ -43,7 +43,7 @@ export default async function VendorsPage({
           </p>
         </div>
         <LinkButton href="/vendors/compare" variant="ghost" size="sm">
-          Comparison view <ProBadge className="ml-2" />
+          Comparison view <PassBadge className="ml-2" />
         </LinkButton>
       </div>
 

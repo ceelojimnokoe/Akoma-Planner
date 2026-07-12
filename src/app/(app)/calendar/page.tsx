@@ -1,9 +1,9 @@
 // src/app/(app)/calendar/page.tsx
 //
-// Month view tying the wedding date, checklist due dates, and (Pro)
+// Month view tying the wedding date, checklist due dates, and (Pass)
 // vendor negotiation activity together. Free: wedding date + checklist.
-// Pro: adds a layer of vendor events (drafted/sent/quoted/booked) on top
-// — that's the "richer" half of "free basic / richer Pro" for this tool.
+// Pass: adds a layer of vendor events (drafted/sent/quoted/booked) on top
+// — that's the "richer" half of "free basic / richer Pass" for this tool.
 // Navigation is plain GET links (?year=&month=), same pattern as the
 // vendor filters — no client JS needed for something this simple.
 

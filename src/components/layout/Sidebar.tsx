@@ -32,15 +32,19 @@ interface NavItem {
   href: string;
   label: string;
   passOnly?: boolean;
+  /** Anchors the first-time guided tour (see src/components/tour/) to
+   *  this nav link via a data-tour attribute — undefined for items the
+   *  tour doesn't cover. */
+  tourId?: string;
 }
 
 const CORE_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/budget", label: "Budget" },
-  { href: "/checklist", label: "Checklist" },
-  { href: "/guests", label: "Guest List" },
-  { href: "/vendors", label: "Vendors" },
-  { href: "/bisaai", label: "BisaAI" },
+  { href: "/budget", label: "Budget", tourId: "nav-budget" },
+  { href: "/checklist", label: "Checklist", tourId: "nav-checklist" },
+  { href: "/guests", label: "Guest List", tourId: "nav-guests" },
+  { href: "/vendors", label: "Vendors", tourId: "nav-vendors" },
+  { href: "/bisaai", label: "BisaAI", tourId: "nav-bisaai" },
   { href: "/calendar", label: "Calendar" },
   // Accommodation is free (see LEARNING.md) — lives with the core items,
   // not the Wedding Pass section below, so its nav placement matches its gating.
@@ -98,7 +102,12 @@ export function SidebarContent({
         <div className="my-3 border-t border-akoma-ink/10" />
         <NavLink item={{ href: "/pricing", label: "Pricing" }} active={pathname.startsWith("/pricing")} showPassBadges={showPassBadges} onNavigate={onNavigate} />
         <NavLink item={{ href: "/profile", label: "Profile" }} active={pathname.startsWith("/profile")} showPassBadges={showPassBadges} onNavigate={onNavigate} />
-        <NavLink item={{ href: "/settings", label: "Settings" }} active={pathname.startsWith("/settings")} showPassBadges={showPassBadges} onNavigate={onNavigate} />
+        <NavLink
+          item={{ href: "/settings", label: "Settings", tourId: "nav-settings" }}
+          active={pathname.startsWith("/settings")}
+          showPassBadges={showPassBadges}
+          onNavigate={onNavigate}
+        />
       </div>
       <div className="border-t border-akoma-ink/10 p-3">
         <div className="mb-2 flex items-center gap-2 px-1">
@@ -133,6 +142,7 @@ function NavLink({
     <Link
       href={item.href}
       onClick={onNavigate}
+      data-tour={item.tourId}
       className={clsx(
         "flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors",
         active ? "bg-akoma-green/10 text-akoma-green" : "text-akoma-ink/70 hover:bg-akoma-ink/5"

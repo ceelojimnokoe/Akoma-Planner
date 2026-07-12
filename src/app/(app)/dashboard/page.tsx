@@ -15,10 +15,12 @@ import { calculateBudgetSummary } from "@/lib/budget";
 import { formatGHS } from "@/lib/currency";
 import { daysUntil, formatDate } from "@/lib/dates";
 import { getAccommodationImage } from "@/lib/accommodation-images";
+import { getProactiveSuggestions } from "@/lib/bisaai";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { VendorStatusCard } from "@/components/dashboard/VendorStatusCard";
 import { WeddingStyleCard } from "@/components/dashboard/WeddingStyleCard";
 import { GuestProgressCard } from "@/components/dashboard/GuestProgressCard";
+import { BisaAISuggestionsCard } from "@/components/dashboard/BisaAISuggestionsCard";
 import { calculateGuestStats } from "@/lib/guests";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -41,6 +43,7 @@ export default async function DashboardPage() {
     recommendedAccommodation,
     coupleProfile,
     vendorBookingStatuses,
+    suggestionsResult,
   ] = await Promise.all([
     prisma.budgetCategory.findMany({
       where: { weddingPlanId: weddingPlan!.id },
@@ -62,7 +65,12 @@ export default async function DashboardPage() {
     prisma.vendorBookingStatus.findMany({
       where: { weddingPlanId: weddingPlan!.id },
     }),
+    // Its own internal fetch duplicates a few of the queries above (see
+    // lib/bisaai-context.ts's header comment on why that's deliberate) —
+    // still one Promise.all slot, run in parallel with everything else.
+    getProactiveSuggestions(weddingPlan!.id),
   ]);
+  const suggestions = suggestionsResult.ok ? suggestionsResult.data.suggestions : [];
 
   const budget = calculateBudgetSummary(
     weddingPlan!.totalBudgetGHS,
@@ -112,7 +120,7 @@ export default async function DashboardPage() {
         percentSpent={budget.percentSpent}
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div data-tour="dashboard-overview" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Wedding countdown"
           value={days >= 0 ? `${days} days` : "Past"}
@@ -139,6 +147,8 @@ export default async function DashboardPage() {
           subtext={`of ${guestStats.totalAttendees} invited (est. ${weddingPlan!.guestEstimate})`}
         />
       </div>
+
+      <BisaAISuggestionsCard suggestions={suggestions} />
 
       <Card>
         <div className="mb-4 flex items-center justify-between">

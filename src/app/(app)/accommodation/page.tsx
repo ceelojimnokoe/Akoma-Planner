@@ -2,10 +2,10 @@
 //
 // Accommodation finder: lodging for out-of-town family, sorted by
 // distance from the venue (nearVendorId links each listing back to a
-// seeded venue — see prisma/schema.prisma). Free for every plan — Pro
+// seeded venue — see prisma/schema.prisma). Free for every plan — Pass
 // widening this to more results/filters is a real idea but deliberately
 // deferred, not built yet (see LEARNING.md); don't invent a fake
-// free/Pro split here just because most other tools have one.
+// free/Pass split here just because most other tools have one.
 //
 // Accommodation is global reference data with no per-wedding "side"
 // assignment field, so "by side" is handled as a workflow — the couple

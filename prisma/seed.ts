@@ -14,12 +14,52 @@
 // tsconfig path aliases the way Next.js's bundler does, so relative
 // imports are the reliable choice here.
 
+import { randomUUID } from "crypto";
 import { PrismaClient, City, VendorCategory, Side, RsvpStatus, VendorInterestStatus } from "@prisma/client";
 import { buildDefaultChecklist } from "../src/lib/checklist-defaults";
-import { STUB_USER_EMAIL, STUB_USER_PASSWORD } from "../src/lib/session";
-import { hashPassword } from "../src/lib/auth";
+import { DEMO_USER_EMAIL, DEMO_USER_PASSWORD } from "../src/lib/session";
+import { createSupabaseAdminClient } from "../src/lib/supabase/admin";
 
 const prisma = new PrismaClient();
+
+/**
+ * Gives the seeded demo account a real Supabase Auth identity via the
+ * Admin API, so DEMO_USER_EMAIL/DEMO_USER_PASSWORD are genuine, working
+ * login credentials post-seed — not just local rows. Falls back to a
+ * random, unclaimable placeholder id (same pattern as
+ * server/actions/collaboration.ts's placeholder collaborators) when
+ * SUPABASE_SERVICE_ROLE_KEY isn't configured, so the rest of the seed
+ * (including this sample wedding's budget/checklist/guest data) still
+ * runs — the demo *login* just won't work until real credentials are
+ * set and the database is reseeded.
+ */
+async function getOrCreateDemoSupabaseId(): Promise<string> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) {
+    console.warn(
+      "  SUPABASE_SERVICE_ROLE_KEY not set — skipping the demo account's real Supabase identity. " +
+        `It will exist in this local database but can't log in as ${DEMO_USER_EMAIL} until you set ` +
+        "SUPABASE_SERVICE_ROLE_KEY in .env and re-run `npm run db:seed`."
+    );
+    return randomUUID();
+  }
+
+  const { data: existingUsers } = await admin.auth.admin.listUsers();
+  const existing = existingUsers.users.find((u) => u.email === DEMO_USER_EMAIL);
+  if (existing) return existing.id;
+
+  const { data, error } = await admin.auth.admin.createUser({
+    email: DEMO_USER_EMAIL,
+    password: DEMO_USER_PASSWORD,
+    email_confirm: true,
+    user_metadata: { name: "Ama Owusu" },
+  });
+  if (error || !data.user) {
+    console.warn(`  Failed to create the demo Supabase user (${error?.message}) — using a placeholder identity instead.`);
+    return randomUUID();
+  }
+  return data.user.id;
+}
 
 async function main() {
   console.log("Seeding AkomaPlanner...");
@@ -338,19 +378,21 @@ async function seedAccommodations(vendors: Awaited<ReturnType<typeof seedVendors
 // ---------------------------------------------------------------------------
 
 async function seedSampleWedding(vendors: Awaited<ReturnType<typeof seedVendors>>) {
+  const supabaseId = await getOrCreateDemoSupabaseId();
   const user = await prisma.user.create({
     data: {
-      email: STUB_USER_EMAIL,
+      supabaseId,
+      email: DEMO_USER_EMAIL,
       name: "Ama Owusu",
-      passwordHash: await hashPassword(STUB_USER_PASSWORD),
-      authProvider: "EMAIL",
+      authProvider: "email",
       emailVerified: true,
     },
   });
 
-  // Six months out — far enough that every checklist bucket (12mo down to
-  // wedding-week items) has a mix of overdue, upcoming and future items,
-  // which makes the dashboard and calendar views meaningful out of the box.
+  // Six months out — long enough for buildDefaultChecklist() (see
+  // checklist-defaults.ts) to spread the full range of default tasks
+  // across a believable near-term-to-long-lead-time mix, which is what
+  // makes the dashboard and calendar views meaningful out of the box.
   const weddingDate = new Date();
   weddingDate.setMonth(weddingDate.getMonth() + 6);
 
@@ -447,7 +489,15 @@ async function seedBudgetCategories(weddingPlanId: string) {
 
 async function seedChecklist(weddingPlanId: string, weddingDate: Date) {
   const items = buildDefaultChecklist(weddingDate);
-  const now = new Date();
+
+  // Every default item's due date now falls within [today, weddingDate] by
+  // construction (see buildDefaultChecklist's proportional rescale), so a
+  // fresh seed has no genuinely overdue items to mark done — correct for a
+  // real new plan, but it would leave the demo at "0% done" out of the box.
+  // Mark the earliest third of tasks (by due date) done by hand instead, so
+  // the seeded checklist still shows believable in-progress texture.
+  const sortedByDueDate = [...items].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+  const doneTitles = new Set(sortedByDueDate.slice(0, Math.floor(sortedByDueDate.length / 3)).map((item) => item.title));
 
   await prisma.checklistItem.createMany({
     data: items.map((item) => ({
@@ -457,9 +507,7 @@ async function seedChecklist(weddingPlanId: string, weddingDate: Date) {
       dueDate: item.dueDate,
       isDefault: item.isDefault,
       priority: item.priority,
-      // Mark anything already due as done, so the seeded checklist shows
-      // believable progress instead of either "0% done" or "already late."
-      done: item.dueDate < now,
+      done: doneTitles.has(item.title),
     })),
   });
 }

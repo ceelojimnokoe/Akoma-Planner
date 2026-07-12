@@ -1,6 +1,6 @@
 // src/app/(app)/traditional-list/page.tsx
 //
-// Dedicated Pro screen wrapping lib/bisaai.ts's priceTraditionalList().
+// Dedicated Pass screen wrapping lib/bisaai.ts's priceTraditionalList().
 // Unlike the BisaAI hub's opt-in tool cards, this page's whole purpose
 // *is* showing this data, so it loads and calls priceTraditionalList()
 // directly on render — same "just show the data" pattern as the Vendors
@@ -12,7 +12,7 @@ import { priceTraditionalList } from "@/lib/bisaai";
 import { formatGHS } from "@/lib/currency";
 import { Card } from "@/components/ui/Card";
 import { Badge, EstimateBadge } from "@/components/ui/Badge";
-import { UpgradePrompt } from "@/components/pro/UpgradePrompt";
+import { UpgradePrompt } from "@/components/upgrade/UpgradePrompt";
 import type { City } from "@prisma/client";
 
 export default async function TraditionalListPage({

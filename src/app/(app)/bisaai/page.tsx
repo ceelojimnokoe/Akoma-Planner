@@ -23,14 +23,14 @@ export default async function BisaAIPage() {
       <div>
         <h1 className="text-2xl font-bold text-akoma-ink">BisaAI</h1>
         <p className="mt-1 text-sm text-akoma-ink/60">
-          Basic Q&amp;A is free. Everything below is a Pro tool — visible either way, unlocked on Pro.
+          Basic Q&amp;A is free. Everything below is a Pass tool — visible either way, unlocked with the Pass.
         </p>
       </div>
 
       <ChatPanel weddingPlanId={weddingPlan!.id} />
 
       <div>
-        <h2 className="mb-3 font-semibold text-akoma-ink">Pro tools</h2>
+        <h2 className="mb-3 font-semibold text-akoma-ink">Pass tools</h2>
         {/* pr-14 on mobile only: reserves room for the floating chat bubble
             (fixed bottom-4 right-4), which otherwise overlaps this grid's
             first card at typical scroll positions on narrow viewports. */}

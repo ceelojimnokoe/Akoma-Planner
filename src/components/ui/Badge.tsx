@@ -2,7 +2,8 @@
 //
 // Small labeled pill. Used throughout the app for plan/status tags — most
 // importantly the honesty-labels this project's safety rules require:
-// "Pro", "Estimate", "Mock", "Experimental", vendor-interest statuses, etc.
+// "Pass", "Featured", "Estimate", "Mock", "Experimental", vendor-interest
+// statuses, etc.
 // Centralizing this one component is what keeps those labels visually
 // consistent everywhere they appear, so they're always recognizable.
 
@@ -40,22 +41,27 @@ export function Badge({
   );
 }
 
-/** Marks a vendor LISTING as Pro-featured (Vendor.isProFeatured) — a
- *  property of that listing, unrelated to whether the viewer has the
- *  Wedding Pass. See PassBadge below for the viewer's-own-access marker;
- *  keeping the two separate is deliberate (see vendors/[vendorId]/page.tsx's
- *  header comment on why the two gates must be kept straight). */
-export function ProBadge({ className }: { className?: string }) {
+/** Marks a vendor LISTING as featured (Vendor.isProFeatured) — a property
+ *  of that listing, unrelated to whether the viewer has the Wedding
+ *  Pass. See PassBadge below for the viewer's-own-access marker; keeping
+ *  the two separate is deliberate (see vendors/[vendorId]/page.tsx's
+ *  header comment on why the two gates must be kept straight) — this is
+ *  also why this badge says "Featured," not "Pass": the two concepts
+ *  can appear on the same card, and "Pass-featured listing" next to
+ *  "unlock with the Pass" would read as one confused idea instead of
+ *  two distinct ones. "Featured" matches VendorFilters.tsx's own
+ *  Standard/Featured wording for this exact concept. */
+export function FeaturedBadge({ className }: { className?: string }) {
   return (
     <Badge tone="gold" className={className}>
-      Pro
+      Featured
     </Badge>
   );
 }
 
 /** Marks a feature that requires the Wedding Pass (the viewer's own,
- *  one-time-purchase access level) — same gold treatment as ProBadge,
- *  used for a different concept. See ProBadge above. */
+ *  one-time-purchase access level) — same gold treatment as
+ *  FeaturedBadge, used for a different concept. See FeaturedBadge above. */
 export function PassBadge({ className }: { className?: string }) {
   return (
     <Badge tone="gold" className={className}>

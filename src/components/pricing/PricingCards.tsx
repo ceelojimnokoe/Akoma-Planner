@@ -8,7 +8,7 @@
 // Feature lists below are deliberately scoped to what this app actually
 // does. The Pass leads with what's real and working today (Design Tools,
 // Traditional List pricing, vendor access, Collaboration, Dress Try-On);
-// BisaAI's Pro tools get their own separate "coming soon" strip rather
+// BisaAI's Pass tools get their own separate "coming soon" strip rather
 // than being mixed into the headline bullets, since they're currently
 // mocked — see LEARNING.md for why overstating capabilities anywhere in
 // the UI, especially the page someone pays money on, isn't done here.

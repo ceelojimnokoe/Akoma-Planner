@@ -87,14 +87,31 @@ export interface BuiltChecklistItem {
  * Turns the template above into concrete due dates for a specific wedding.
  * Used both by the onboarding flow (new wedding plan) and by prisma/seed.ts
  * (sample wedding) so the two never drift out of sync.
+ *
+ * `daysBeforeWedding` is a fixed calendar offset, but the real planning
+ * window between `today` and `weddingDate` is rarely the template's full
+ * 365 days — an engagement under a year old would otherwise get tasks
+ * born already overdue. Instead each item's offset is normalized against
+ * the template's own largest offset into a 0-1 position (how far through
+ * the planning arc it conceptually sits), then that position is mapped
+ * onto the *actual* remaining window. This preserves the template's
+ * relative ordering while guaranteeing every due date lands within
+ * [today, weddingDate] regardless of how long or short the engagement is.
  */
-export function buildDefaultChecklist(weddingDate: Date): BuiltChecklistItem[] {
-  const oneDayMs = 24 * 60 * 60 * 1000;
-  return DEFAULT_CHECKLIST_TEMPLATE.map((item) => ({
-    title: item.title,
-    category: item.category,
-    dueDate: new Date(weddingDate.getTime() - item.daysBeforeWedding * oneDayMs),
-    isDefault: true as const,
-    priority: item.priority,
-  }));
+export function buildDefaultChecklist(weddingDate: Date, today: Date = new Date()): BuiltChecklistItem[] {
+  const maxDaysBeforeWedding = Math.max(...DEFAULT_CHECKLIST_TEMPLATE.map((item) => item.daysBeforeWedding));
+  const windowMs = Math.max(0, weddingDate.getTime() - today.getTime());
+
+  return DEFAULT_CHECKLIST_TEMPLATE.map((item) => {
+    const position = item.daysBeforeWedding / maxDaysBeforeWedding;
+    const dueDateMs = weddingDate.getTime() - position * windowMs;
+    const clampedMs = Math.min(weddingDate.getTime(), Math.max(today.getTime(), dueDateMs));
+    return {
+      title: item.title,
+      category: item.category,
+      dueDate: new Date(clampedMs),
+      isDefault: true as const,
+      priority: item.priority,
+    };
+  });
 }

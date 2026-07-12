@@ -1,44 +1,25 @@
 // src/components/bisaai/ChatPanel.tsx
 //
 // The free-tier Q&A chat. Conversation history lives only in this
-// component's local state — each call to askBasicQA is independent (see
-// lib/bisaai.ts's basicQA), there's no server-side conversation/session
-// concept in this MVP. Every answer carries a MockBadge since nothing
-// here calls a real model yet.
+// component's local state (via useBisaAIChat) — there's no server-side
+// conversation/session concept in this MVP, though recent questions are
+// forwarded to askBasicQA so answers can vary across a repeated topic
+// (see lib/bisaai-qa.ts). Every answer carries a MockBadge since nothing
+// here calls a real model yet — it's grounded in real wedding data, but
+// the *generation* is still rule-based.
 
 "use client";
 
-import { useState } from "react";
-import { useTransition } from "react";
-import { askBasicQA } from "@/server/actions/bisaai";
+import { useBisaAIChat } from "@/components/bisaai/useBisaAIChat";
+import { ChatChip } from "@/components/bisaai/ChatChip";
+import { TypingDots } from "@/components/bisaai/TypingDots";
 import { Button } from "@/components/ui/Button";
 import { MockBadge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 
-interface Message {
-  role: "user" | "assistant";
-  text: string;
-}
-
 export function ChatPanel({ weddingPlanId }: { weddingPlanId: string }) {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", text: "Hi! Ask me anything about planning your wedding — budget, checklist timing, traditional ceremony order, or guest planning." },
-  ]);
-  const [input, setInput] = useState("");
-  const [isPending, startTransition] = useTransition();
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const question = input.trim();
-    if (!question) return;
-    setMessages((prev) => [...prev, { role: "user", text: question }]);
-    setInput("");
-    startTransition(async () => {
-      const result = await askBasicQA(weddingPlanId, question);
-      const answer = result.ok ? result.data.answer : (result.error ?? "Something went wrong.");
-      setMessages((prev) => [...prev, { role: "assistant", text: answer }]);
-    });
-  }
+  const { messages, input, setInput, isPending, handleSubmit, handleChipClick, showStarters, starterPrompts, followUps } =
+    useBisaAIChat(weddingPlanId);
 
   return (
     <Card className="flex h-[28rem] flex-col">
@@ -60,7 +41,23 @@ export function ChatPanel({ weddingPlanId }: { weddingPlanId: string }) {
             </p>
           </div>
         ))}
-        {isPending && <p className="text-sm text-akoma-ink/40">BisaAI is thinking…</p>}
+        {isPending && <TypingDots />}
+
+        {showStarters && !isPending && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {starterPrompts.map((prompt) => (
+              <ChatChip key={prompt} label={prompt} onClick={() => handleChipClick(prompt)} />
+            ))}
+          </div>
+        )}
+
+        {!showStarters && followUps.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {followUps.map((prompt) => (
+              <ChatChip key={prompt} label={prompt} onClick={() => handleChipClick(prompt)} disabled={isPending} />
+            ))}
+          </div>
+        )}
       </div>
       <form onSubmit={handleSubmit} className="mt-3 flex gap-2 border-t border-akoma-ink/10 pt-3">
         <input

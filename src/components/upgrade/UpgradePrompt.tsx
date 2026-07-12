@@ -1,4 +1,4 @@
-// src/components/pro/UpgradePrompt.tsx
+// src/components/upgrade/UpgradePrompt.tsx
 //
 // The standard "this needs the Wedding Pass" block. Used whenever a page
 // or panel hits a requirePass() gate from lib/plan.ts — same visual

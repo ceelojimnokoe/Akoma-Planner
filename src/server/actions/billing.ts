@@ -86,6 +86,19 @@ export async function startPayment(weddingPlanId: string): Promise<never> {
  * wedding plan id on success, or null if the reference doesn't match a
  * known Payment row (defensive — shouldn't happen, since startPayment()
  * always creates the row before Paystack can redirect back).
+ *
+ * Deliberately does NOT call revalidatePath itself (unlike most mutations
+ * in this file) — its two callers need different treatment. The webhook
+ * route (a Route Handler) revalidates right after calling this, which is
+ * fine there. checkout/callback/page.tsx calls this directly during its
+ * own Server Component render — and Next.js disallows revalidatePath
+ * during a render outright (confirmed by actually triggering this path
+ * with a real payment during verification: it threw "used revalidatePath
+ * during render which is unsupported", not just a lint warning). That
+ * page doesn't need it anyway: Next 15 defaults dynamic routes to
+ * staleTime 0 (see simulatePaymentDevOnly's own comment on this same
+ * point), so the "Go to dashboard" link the callback page renders next
+ * already fetches hasWeddingPass fresh without any manual invalidation.
  */
 export async function confirmPaymentSuccess(reference: string): Promise<{ weddingPlanId: string } | null> {
   const payment = await prisma.payment.findUnique({ where: { reference } });
@@ -97,7 +110,6 @@ export async function confirmPaymentSuccess(reference: string): Promise<{ weddin
     prisma.weddingPlan.update({ where: { id: payment.weddingPlanId }, data: { hasWeddingPass: true } }),
   ]);
 
-  revalidatePath("/", "layout");
   return { weddingPlanId: payment.weddingPlanId };
 }
 
@@ -113,17 +125,37 @@ export async function markPaymentFailed(reference: string): Promise<void> {
 
 /** Local-dev-only fallback for when PAYSTACK_SECRET_KEY isn't configured,
  *  so the rest of the app stays testable without real keys — see
- *  checkout/page.tsx, which only ever offers this path when
- *  isPaystackConfigured() is false. Double-gated on NODE_ENV too, so a
- *  production deployment that simply forgot to set the key can't
- *  silently start granting the Pass for free instead of failing loudly. */
-export async function unlockWeddingPassDevOnly(weddingPlanId: string): Promise<never> {
+ *  checkout/page.tsx and MockPaymentFlow.tsx, which only ever offer this
+ *  path when isPaystackConfigured() is false. Double-gated on NODE_ENV
+ *  too, so a production deployment that simply forgot to set the key
+ *  can't silently start granting the Pass for free instead of failing
+ *  loudly.
+ *
+ *  Returns a result instead of redirecting (unlike every other action in
+ *  this file) because MockPaymentFlow.tsx — a Client Component — needs
+ *  to control the pacing of a processing/success animation itself before
+ *  navigating away; a server-side redirect() would short-circuit that.
+ *  This is the one seam a real Paystack Popup/inline flow (if ever added
+ *  as an alternative to the redirect-based Standard flow startPayment()
+ *  already implements) would plug into instead of this stub.
+ *
+ *  Deliberately skips revalidatePath (unlike every other mutation in this
+ *  file): calling it here, awaited from a startTransition on /checkout
+ *  itself, made Next re-render CheckoutPage server-side mid-animation —
+ *  its "You already have the Wedding Pass" gate would replace
+ *  MockPaymentFlow's own success state before the couple ever saw it,
+ *  regardless of which path was passed to revalidatePath. Not needed
+ *  anyway: Next 15 defaults dynamic routes to staleTime 0, so
+ *  MockPaymentFlow's router.push("/dashboard...") already fetches
+ *  hasWeddingPass fresh without any manual invalidation. */
+export async function simulatePaymentDevOnly(
+  weddingPlanId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
   if (isPaystackConfigured() || process.env.NODE_ENV === "production") {
-    throw new Error("This stub is only available in local development without Paystack configured.");
+    return { ok: false, error: "This demo payment is only available in local development without Paystack configured." };
   }
   await prisma.weddingPlan.update({ where: { id: weddingPlanId }, data: { hasWeddingPass: true } });
-  revalidatePath("/", "layout");
-  redirect("/dashboard?unlocked=1");
+  return { ok: true };
 }
 
 /** Not part of the spec'd feature set, but useful during development to

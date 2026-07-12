@@ -1,107 +1,114 @@
 // src/components/guests/ImportGuestsModal.tsx
 //
-// Parses the spreadsheet entirely in the browser (read-excel-file/browser
-// — see LEARNING.md for why this replaced the more common "xlsx" package,
-// which has an unpatched security advisory), maps common column-name
-// variations onto the four fields this app tracks, and shows an editable
-// preview before anything touches the database. Only the confirmed rows
-// are sent to importGuests() — the actual write.
+// Parses the spreadsheet entirely in the browser — .xlsx via
+// read-excel-file/browser (see LEARNING.md for why this replaced the more
+// common "xlsx" package, which has an unpatched security advisory), .csv
+// via the hand-rolled parser in lib/csv.ts (same reasoning: no new
+// dependency for something this small). Both feed the same
+// `unknown[][]` shape into lib/guest-import.ts's column-mapping/row-
+// parsing logic, so everything past the initial read is format-agnostic.
+//
+// Column mapping is always visible (not just on failure) so a confident
+// auto-detection can still be corrected by hand, but only *forces* itself
+// open and blocks the Import button when the one truly required field —
+// Guest — couldn't be found. Only the confirmed, valid rows are sent to
+// importGuests() — the actual write.
 
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { readSheet } from "read-excel-file/browser";
-import { importGuests, type ImportedGuestRow, type ImportGuestsResult } from "@/server/actions/guests";
+import { importGuests, type ImportGuestsResult } from "@/server/actions/guests";
+import {
+  detectColumnMapping,
+  detectFileKind,
+  FIELD_LABELS,
+  FIELD_ORDER,
+  isMappingComplete,
+  parseRows,
+  type ColumnMapping,
+  type Field,
+} from "@/lib/guest-import";
+import { parseCsv } from "@/lib/csv";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 
-const NAME_ALIASES = ["name", "guest", "guest name", "full name"];
-const SIDE_ALIASES = ["side", "bride/groom", "group"];
-const RSVP_ALIASES = ["rsvp", "rsvp status", "status", "attending"];
-const CONTACT_ALIASES = ["contact", "phone", "phone number", "email", "contact info"];
-
-type Field = "name" | "side" | "rsvpStatus" | "contact";
-
-function normalizeHeader(header: string): Field | null {
-  const h = header.trim().toLowerCase();
-  if (NAME_ALIASES.includes(h)) return "name";
-  if (SIDE_ALIASES.includes(h)) return "side";
-  if (RSVP_ALIASES.includes(h)) return "rsvpStatus";
-  if (CONTACT_ALIASES.includes(h)) return "contact";
-  return null;
-}
-
-function normalizeSide(value: string): "BRIDE" | "GROOM" | "BOTH" | null {
-  const v = value.trim().toLowerCase();
-  if (v === "bride" || v === "b") return "BRIDE";
-  if (v === "groom" || v === "g") return "GROOM";
-  if (v === "both") return "BOTH";
-  return null;
-}
-
-function normalizeRsvp(value: string): "PENDING" | "YES" | "NO" {
-  const v = value.trim().toLowerCase();
-  if (["yes", "confirmed", "attending", "accepted"].includes(v)) return "YES";
-  if (["no", "declined", "not attending", "rejected"].includes(v)) return "NO";
-  return "PENDING";
-}
-
-interface PreviewRow extends ImportedGuestRow {
-  valid: boolean;
-  reason?: string;
-}
-
-function parseRows(sheetRows: unknown[][]): PreviewRow[] {
-  const [headerRow, ...dataRows] = sheetRows;
-  if (!headerRow) return [];
-  const fieldByColumn = headerRow.map((h) => normalizeHeader(String(h ?? "")));
-
-  return dataRows
-    .filter((row) => row.some((cell) => cell != null && String(cell).trim() !== ""))
-    .map((row) => {
-      const record: Partial<Record<Field, string>> = {};
-      fieldByColumn.forEach((field, i) => {
-        if (field) record[field] = row[i] != null ? String(row[i]) : "";
-      });
-
-      const name = record.name?.trim() ?? "";
-      if (!name) {
-        return { name: "", side: "BRIDE", rsvpStatus: "PENDING", contact: "", valid: false, reason: "Missing name" };
-      }
-      const side = normalizeSide(record.side ?? "");
-      if (!side) {
-        return { name, side: "BRIDE", rsvpStatus: "PENDING", contact: record.contact, valid: false, reason: "Unrecognized side" };
-      }
-      return { name, side, rsvpStatus: normalizeRsvp(record.rsvpStatus ?? ""), contact: record.contact, valid: true };
-    });
-}
-
 export function ImportGuestsModal({ weddingPlanId }: { weddingPlanId: string }) {
   const [open, setOpen] = useState(false);
-  const [rows, setRows] = useState<PreviewRow[]>([]);
-  const [parseError, setParseError] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [sheetRows, setSheetRows] = useState<unknown[][]>([]);
+  const [mapping, setMapping] = useState<ColumnMapping>({});
+  const [mappingExpanded, setMappingExpanded] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportGuestsResult | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
+  const headerRow = sheetRows[0] ?? [];
+  const dataRows = sheetRows.slice(1);
+  const mappingComplete = isMappingComplete(mapping);
+
+  const rows = useMemo(() => parseRows(dataRows, mapping), [dataRows, mapping]);
+  const validCount = rows.filter((r) => r.valid).length;
+  const skippedRows = rows.filter((r) => !r.valid);
+
   function reset() {
-    setRows([]);
-    setParseError(null);
+    setFileName(null);
+    setSheetRows([]);
+    setMapping({});
+    setMappingExpanded(false);
+    setFileError(null);
     setResult(null);
   }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file after fixing it
     if (!file) return;
     reset();
-    try {
-      const data = await readSheet(file);
-      setRows(parseRows(data as unknown[][]));
-    } catch {
-      setParseError("Couldn't read that file — make sure it's a valid .xlsx spreadsheet.");
+    setFileName(file.name);
+
+    const kind = detectFileKind(file.name);
+    if (kind === "unsupported-xls") {
+      setFileError(
+        "We don't support the older Excel 97-2003 (.xls) format yet. Please re-save this file as .xlsx or .csv and upload again — in Excel: File → Save As → Excel Workbook (.xlsx); in Google Sheets: File → Download → Comma Separated Values (.csv)."
+      );
+      return;
     }
+    if (kind === "unsupported") {
+      setFileError("Unsupported file type. Please upload a .xlsx or .csv file.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setFileError("That file is larger than we can import here (5MB max). Try splitting it into smaller batches.");
+      return;
+    }
+
+    try {
+      const data = kind === "xlsx" ? await readSheet(file) : parseCsv(await file.text());
+      if (data.length === 0) {
+        setFileError("This file doesn't contain any data rows.");
+        return;
+      }
+      const detected = detectColumnMapping(data[0] as unknown[]);
+      setSheetRows(data as unknown[][]);
+      setMapping(detected);
+      setMappingExpanded(!isMappingComplete(detected));
+    } catch (err) {
+      console.error("Guest import: failed to parse file", err);
+      setFileError("Couldn't read that file — make sure it isn't corrupted and try again.");
+    }
+  }
+
+  function updateMapping(field: Field, columnIndex: number | null) {
+    setMapping((prev) => {
+      const next = { ...prev };
+      if (columnIndex === null) delete next[field];
+      else next[field] = columnIndex;
+      return next;
+    });
   }
 
   function handleImport() {
@@ -113,12 +120,16 @@ export function ImportGuestsModal({ weddingPlanId }: { weddingPlanId: string }) 
     });
   }
 
-  const validCount = rows.filter((r) => r.valid).length;
+  function columnLabel(index: number): string {
+    const raw = headerRow[index];
+    const text = raw != null ? String(raw).trim() : "";
+    return text || `Column ${index + 1}`;
+  }
 
   return (
     <>
       <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(true)}>
-        Import from Excel
+        Import guests
       </Button>
       <Modal
         open={open}
@@ -126,29 +137,81 @@ export function ImportGuestsModal({ weddingPlanId }: { weddingPlanId: string }) 
           setOpen(false);
           reset();
         }}
-        title="Import guests from Excel"
+        title="Import guests"
       >
         <div className="space-y-4">
-          <div>
-            <p className="text-sm text-akoma-ink/60">
-              Upload a .xlsx file. Columns named <code>Guest</code>/<code>Name</code>, <code>Side</code>,{" "}
-              <code>RSVP</code>, and <code>Phone</code>/<code>Email</code>/<code>Contact</code> are matched
-              automatically, in any order.
-            </p>
-            <input
-              type="file"
-              accept=".xlsx"
-              onChange={handleFile}
-              className="mt-3 block w-full text-sm text-akoma-ink/70 file:mr-3 file:rounded-lg file:border-0 file:bg-akoma-green file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white"
-            />
-            {parseError && <p className="mt-2 text-sm text-akoma-terracotta">{parseError}</p>}
-          </div>
-
-          {rows.length > 0 && (
-            <div className="space-y-3">
-              <p className="text-sm text-akoma-ink/70">
-                {validCount} of {rows.length} rows look good and will be imported.
+          {!result?.ok && (
+            <div>
+              <p className="text-sm text-akoma-ink/60">
+                Upload a .xlsx spreadsheet or a .csv file (including a Google Sheets CSV export). Columns named{" "}
+                <code>Guest</code>/<code>Name</code>, <code>Side</code>, <code>RSVP</code>, and{" "}
+                <code>Phone</code>/<code>Email</code>/<code>Contact</code> are matched automatically, in any order.
               </p>
+              <input
+                type="file"
+                accept=".xlsx,.csv"
+                onChange={handleFile}
+                className="mt-3 block w-full text-sm text-akoma-ink/70 file:mr-3 file:rounded-lg file:border-0 file:bg-akoma-green file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white"
+              />
+              {fileName && !fileError && <p className="mt-2 text-xs text-akoma-ink/50">Selected: {fileName}</p>}
+              {fileError && <p className="mt-2 text-sm text-akoma-terracotta">{fileError}</p>}
+            </div>
+          )}
+
+          {sheetRows.length > 0 && !result?.ok && (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-akoma-ink/10 p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-akoma-ink">Column mapping</p>
+                  <button
+                    type="button"
+                    onClick={() => setMappingExpanded((v) => !v)}
+                    className="text-xs font-medium text-akoma-green hover:underline"
+                  >
+                    {mappingExpanded ? "Hide" : "Adjust"}
+                  </button>
+                </div>
+                {!mappingComplete && (
+                  <p className="mt-1 text-sm text-akoma-terracotta">
+                    We couldn&apos;t find a Guest name column — map it below to continue.
+                  </p>
+                )}
+                {!mappingExpanded ? (
+                  <p className="mt-1 text-xs text-akoma-ink/60">
+                    {FIELD_ORDER.map((field) => {
+                      const idx = mapping[field];
+                      return `${FIELD_LABELS[field]} ← ${idx != null ? columnLabel(idx) : field === "side" ? "not found, defaults to Both" : "not found"}`;
+                    }).join(" · ")}
+                  </p>
+                ) : (
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    {FIELD_ORDER.map((field) => (
+                      <label key={field} className="text-xs text-akoma-ink/70">
+                        {FIELD_LABELS[field]}
+                        {field === "name" && <span className="text-akoma-terracotta"> *</span>}
+                        <select
+                          value={mapping[field] ?? ""}
+                          onChange={(e) => updateMapping(field, e.target.value === "" ? null : Number(e.target.value))}
+                          className="mt-1 block w-full rounded-lg border border-akoma-ink/15 px-2 py-1.5 text-sm focus:border-akoma-green focus:outline-none focus:ring-1 focus:ring-akoma-green"
+                        >
+                          <option value="">— None —</option>
+                          {headerRow.map((_, i) => (
+                            <option key={i} value={i}>
+                              {columnLabel(i)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <p className="text-sm text-akoma-ink/70">
+                <span className="font-medium text-akoma-ink">{validCount} guest{validCount === 1 ? "" : "s"} detected.</span>
+                {skippedRows.length > 0 && ` ${skippedRows.length} row${skippedRows.length === 1 ? "" : "s"} skipped (missing name).`}
+              </p>
+
               <div className="max-h-72 overflow-y-auto rounded-lg border border-akoma-ink/10">
                 <table className="w-full text-left text-sm">
                   <thead className="sticky top-0 bg-akoma-cream">
@@ -168,11 +231,7 @@ export function ImportGuestsModal({ weddingPlanId }: { weddingPlanId: string }) 
                         <td className="px-3 py-1.5">{r.rsvpStatus}</td>
                         <td className="px-3 py-1.5">{r.contact || "—"}</td>
                         <td className="px-3 py-1.5">
-                          {r.valid ? (
-                            <Badge tone="green">Ready</Badge>
-                          ) : (
-                            <Badge tone="terracotta">{r.reason}</Badge>
-                          )}
+                          {r.valid ? <Badge tone="green">Ready</Badge> : <Badge tone="terracotta">{r.reason}</Badge>}
                         </td>
                       </tr>
                     ))}
@@ -180,18 +239,43 @@ export function ImportGuestsModal({ weddingPlanId }: { weddingPlanId: string }) 
                 </table>
               </div>
 
-              {result?.ok && (
-                <p className="rounded-lg bg-akoma-green/10 px-3 py-2 text-sm text-akoma-green">
-                  Imported {result.imported} guest{result.imported === 1 ? "" : "s"}.
-                  {result.skipped > 0 && ` ${result.skipped} skipped (likely over your plan's guest cap).`}
-                </p>
-              )}
               {result?.error && (
                 <p className="rounded-lg bg-akoma-terracotta/10 px-3 py-2 text-sm text-akoma-terracotta">{result.error}</p>
               )}
 
-              <Button type="button" onClick={handleImport} disabled={isPending || validCount === 0} className="w-full">
+              <Button
+                type="button"
+                onClick={handleImport}
+                disabled={isPending || validCount === 0 || !mappingComplete}
+                className="w-full"
+              >
                 {isPending ? "Importing…" : `Import ${validCount} guest${validCount === 1 ? "" : "s"}`}
+              </Button>
+            </div>
+          )}
+
+          {result?.ok && (
+            <div className="flex flex-col items-center rounded-lg bg-akoma-green/10 px-4 py-8 text-center">
+              <p className="text-3xl">✅</p>
+              <p className="mt-3 font-semibold text-akoma-ink">
+                Successfully imported {result.imported} guest{result.imported === 1 ? "" : "s"}!
+              </p>
+              {result.skipped > 0 && (
+                <p className="mt-1 text-sm text-akoma-ink/60">
+                  {result.skipped} row{result.skipped === 1 ? "" : "s"} skipped (likely over your plan&apos;s guest cap).
+                </p>
+              )}
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="mt-4"
+                onClick={() => {
+                  setOpen(false);
+                  reset();
+                }}
+              >
+                Done
               </Button>
             </div>
           )}

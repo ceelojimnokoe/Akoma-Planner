@@ -3,11 +3,12 @@
 // Vendor detail + the negotiation panel. Two independent gates apply
 // here, and it's worth keeping them straight:
 //  - isProFeatured vendors hide their pricing/rating/contact from a Free
-//    plan (a listing-level gate).
-//  - The negotiation/quote-tracking panel itself is Pro-only regardless
-//    of whether the vendor is Pro-featured (a tool-level gate, enforced
-//    again server-side in src/server/actions/vendors.ts — this page's
-//    check is a UX convenience, not the real security boundary).
+//    plan (a listing-level gate — labelled "Featured" in the UI).
+//  - The negotiation/quote-tracking panel itself requires the Wedding
+//    Pass regardless of whether the vendor is a featured listing (a
+//    tool-level gate, enforced again server-side in
+//    src/server/actions/vendors.ts — this page's check is a UX
+//    convenience, not the real security boundary).
 
 import { notFound } from "next/navigation";
 import Image from "next/image";
@@ -17,8 +18,8 @@ import { requirePass, canAccessPassFeatures } from "@/lib/plan";
 import { formatGHS } from "@/lib/currency";
 import { getVendorImage } from "@/lib/vendor-images";
 import { Card } from "@/components/ui/Card";
-import { Badge, ProBadge } from "@/components/ui/Badge";
-import { UpgradePrompt } from "@/components/pro/UpgradePrompt";
+import { Badge, FeaturedBadge } from "@/components/ui/Badge";
+import { UpgradePrompt } from "@/components/upgrade/UpgradePrompt";
 import { VendorInterestPanel } from "@/components/vendors/VendorInterestPanel";
 import { categoryLabel, cityLabel } from "@/components/vendors/VendorCard";
 
@@ -44,14 +45,14 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ v
 
         <div className="mb-1 flex items-center gap-2">
           <h1 className="text-xl font-bold text-akoma-ink">{vendor.name}</h1>
-          {vendor.isProFeatured && <ProBadge />}
+          {vendor.isProFeatured && <FeaturedBadge />}
         </div>
         <p className="mb-4 text-sm text-akoma-ink/50">
           {categoryLabel(vendor.category)} · {cityLabel(vendor.city)}
         </p>
 
         {locked ? (
-          <UpgradePrompt reason="This is a Pro-featured listing — pricing, rating and contact details unlock on Pro." />
+          <UpgradePrompt reason="This is a featured listing — pricing, rating and contact details unlock with the Wedding Pass." />
         ) : (
           <>
             <p className="mb-4 text-sm text-akoma-ink/70">{vendor.description}</p>

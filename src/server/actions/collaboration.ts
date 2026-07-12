@@ -8,9 +8,14 @@
 // there is no real invite/auth flow. "Adding" a fiancé or planner here
 // creates (or reuses) a User row by email and links it as a
 // WeddingMember directly — no invite email is sent, no acceptance step,
-// no login for that person. This is an honest stand-in for what a real
-// invite system would do once src/lib/session.ts's stubbed auth is
-// replaced with something real (see LEARNING.md #5).
+// no login for that person. Real Supabase Auth now backs every account
+// that CAN log in (src/lib/session.ts), which is exactly why this one
+// remaining placeholder-user path stands out: it gives the invitee a
+// random, unclaimable supabaseId (see randomUUID() below) rather than a
+// real Supabase identity, so they still can't actually sign in as
+// themselves. A real invite system (email + an acceptance step that
+// lets the invitee create their own real Supabase account and link it
+// to this same row) is the honest next step here, not yet built.
 
 "use server";
 
@@ -46,7 +51,11 @@ export async function addCollaborator(input: {
 
   const user = await prisma.user.upsert({
     where: { email: parsed.data.email },
-    create: { email: parsed.data.email, name: parsed.data.name },
+    // A random, unclaimable placeholder — not a real Supabase identity,
+    // see this file's header comment. Whoever eventually signs up for
+    // real with this email gets synced (src/lib/supabase/sync-user.ts)
+    // to their OWN row by supabaseId, not this one.
+    create: { email: parsed.data.email, name: parsed.data.name, supabaseId: randomUUID() },
     update: {},
   });
 

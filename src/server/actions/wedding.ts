@@ -136,5 +136,5 @@ export async function createWeddingPlan(rawInput: OnboardingInput): Promise<Crea
     actionHref: "/dashboard",
   });
 
-  redirect(`/dashboard?welcome=1&weddingPlanId=${weddingPlan.id}`);
+  redirect(`/onboarding/complete?weddingPlanId=${weddingPlan.id}`);
 }

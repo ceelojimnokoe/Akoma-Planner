@@ -1,56 +1,57 @@
 // src/lib/session.ts
 //
-// Real (but lightweight) auth now exists — see lib/auth.ts — alongside the
-// original seeded stub, per LEARNING.md #5's own stated plan. getCurrentUser()
-// checks the session cookie first; if there isn't one (or it points at a
-// user that no longer exists), it falls back to the same hardcoded seeded
-// row as before. That fallback is what keeps the seeded demo account
-// working with zero setup — nothing that already calls getCurrentUser()/
-// getCurrentWeddingPlan() had to change for this to work.
+// The current authenticated user, backed by real Supabase Auth — no more
+// silent stub-account fallback (the old lib/auth.ts cookie, and the
+// "any visitor becomes the demo account" behavior it enabled, are gone).
+// middleware.ts (src/lib/supabase/middleware.ts) already redirects an
+// unauthenticated visitor away from every protected route before any of
+// these functions run there, so getCurrentUser() below can treat "no
+// session" as a defensive edge case rather than the expected path — it
+// still redirects on its own too (belt-and-suspenders), it just
+// shouldn't normally be the one doing that work.
 
 import { redirect } from "next/navigation";
 import { prisma } from "./prisma";
-import { getSessionUserId } from "./auth";
+import { createSupabaseServerClient } from "./supabase/server";
+import { syncLocalUser } from "./supabase/sync-user";
 
-// Must match the user created in prisma/seed.ts. Both are also real,
-// working login credentials for the seeded demo account — try them on
-// /login — since the seeded user now gets a real passwordHash too.
-export const STUB_USER_EMAIL = "ama.owusu@example.com";
-export const STUB_USER_PASSWORD = "akomaplanner-demo";
+// Real, working login credentials for the seeded demo account (try them
+// on /login) — prisma/seed.ts uses these to give it a real Supabase
+// identity via the Admin API, see that file's own comment.
+export const DEMO_USER_EMAIL = "ama.owusu@example.com";
+export const DEMO_USER_PASSWORD = "akomaplanner-demo";
 
-export async function getCurrentUser() {
-  const sessionUserId = await getSessionUserId();
-  if (sessionUserId) {
-    const sessionUser = await prisma.user.findUnique({ where: { id: sessionUserId } });
-    if (sessionUser) return sessionUser;
-  }
+/** Like getCurrentUser(), but never redirects — null for an anonymous
+ *  visitor. For public pages (the landing page) that render either way
+ *  but tailor a CTA to signed-in status. */
+export async function getCurrentUserOrNull() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user: supabaseUser },
+  } = await supabase.auth.getUser();
 
-  const user = await prisma.user.findUnique({ where: { email: STUB_USER_EMAIL } });
-  if (!user) {
-    throw new Error(
-      `Stub session user not found (${STUB_USER_EMAIL}). Did you run "npm run db:seed"?`
-    );
-  }
-  return user;
+  if (!supabaseUser) return null;
+  return syncLocalUser(supabaseUser);
 }
 
 /**
- * Like getCurrentUser(), but with no seeded-demo-account fallback — an
- * anonymous visitor is sent to /login instead of silently seeing (and
- * acting on) the demo account. Use this on routes that render or act on
- * account-specific data with no other guard in front of them: /verify-email,
- * /checkout, and the PDF export routes all did exactly that before this
- * existed. Pages inside (app)/ already sit behind a wedding-plan check in
- * (app)/layout.tsx and don't need this on top — this is specifically for
- * routes that have no other gate at all.
+ * The current signed-in user's local record, synced fresh from their
+ * Supabase session (see supabase/sync-user.ts). Assumes a session
+ * exists — true for every route middleware.ts protects — and redirects
+ * to /login as a defensive fallback if somehow called where it doesn't.
  */
-export async function requireSession() {
-  const sessionUserId = await getSessionUserId();
-  const user = sessionUserId
-    ? await prisma.user.findUnique({ where: { id: sessionUserId } })
-    : null;
+export async function getCurrentUser() {
+  const user = await getCurrentUserOrNull();
   if (!user) redirect("/login");
   return user;
+}
+
+/** Explicit alias for the couple of routes outside middleware's
+ *  page-redirect matcher that still want a named hard gate (the PDF
+ *  export API routes) — identical behavior to getCurrentUser(), named
+ *  for what it's asserting at the call site. */
+export async function requireSession() {
+  return getCurrentUser();
 }
 
 /**

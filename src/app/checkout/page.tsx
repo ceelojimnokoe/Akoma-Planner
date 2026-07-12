@@ -10,15 +10,17 @@
 //
 // Without a configured key (local dev without real credentials), falls
 // back to the honest, clearly-labelled demo stub instead of breaking —
-// see unlockWeddingPassDevOnly()'s own comment for why that path is
-// additionally gated off in production.
+// see simulatePaymentDevOnly()'s own comment for why that path is
+// additionally gated off in production, and MockPaymentFlow.tsx for the
+// processing/success animation around it.
 
 import { redirect } from "next/navigation";
 import { getCurrentWeddingPlan, requireSession } from "@/lib/session";
 import { WEDDING_PASS_AMOUNT_GHS } from "@/lib/pricing";
 import { formatGHS } from "@/lib/currency";
 import { isPaystackConfigured } from "@/lib/payments/paystack";
-import { startPayment, unlockWeddingPassDevOnly } from "@/server/actions/billing";
+import { startPayment } from "@/server/actions/billing";
+import { MockPaymentFlow } from "@/components/checkout/MockPaymentFlow";
 import { Card } from "@/components/ui/Card";
 import { Button, LinkButton } from "@/components/ui/Button";
 
@@ -46,9 +48,7 @@ export default async function CheckoutPage({
   }
 
   const paystackReady = isPaystackConfigured();
-  const confirmAction = paystackReady
-    ? startPayment.bind(null, weddingPlan.id)
-    : unlockWeddingPassDevOnly.bind(null, weddingPlan.id);
+  const confirmAction = startPayment.bind(null, weddingPlan.id);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-akoma-cream px-6 py-16">
@@ -80,11 +80,15 @@ export default async function CheckoutPage({
           </div>
         )}
 
-        <form action={confirmAction} className="mt-5">
-          <Button type="submit" className="w-full">
-            {paystackReady ? "Continue to payment" : "Simulate successful payment"}
-          </Button>
-        </form>
+        {paystackReady ? (
+          <form action={confirmAction} className="mt-5">
+            <Button type="submit" className="w-full">
+              Continue to payment
+            </Button>
+          </form>
+        ) : (
+          <MockPaymentFlow weddingPlanId={weddingPlan.id} />
+        )}
       </Card>
     </div>
   );

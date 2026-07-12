@@ -21,6 +21,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { FloatingChatBubble } from "@/components/bisaai/FloatingChatBubble";
 import { ToastProvider } from "@/components/ui/ToastProvider";
+import { GuidedTourController } from "@/components/tour/GuidedTourController";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             every page in the app shell, not just the dedicated /bisaai page. */}
         <FloatingChatBubble weddingPlanId={weddingPlan.id} />
       </div>
+      <GuidedTourController hasCompletedTour={user.hasCompletedTour} />
     </ToastProvider>
   );
 }

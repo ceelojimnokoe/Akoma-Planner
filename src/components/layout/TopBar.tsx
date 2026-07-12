@@ -36,7 +36,9 @@ export async function TopBar({ weddingPlan, user }: { weddingPlan: WeddingPlan; 
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <NotificationBell weddingPlanId={weddingPlan.id} initialNotifications={notifications} initialUnreadCount={unreadCount} />
+        <div data-tour="notifications">
+          <NotificationBell weddingPlanId={weddingPlan.id} initialNotifications={notifications} initialUnreadCount={unreadCount} />
+        </div>
         {weddingPlan.hasWeddingPass ? (
           <PassBadge />
         ) : (

@@ -4,7 +4,7 @@
 // own nav item — it's a couple of download buttons, not a screen you'd
 // return to repeatedly — so it lives here alongside the other "about
 // your account" info, matching the "generate simple exports" free-tier
-// bullet and "more" Pro-tier bullet from the pricing comparison.
+// bullet and "more" Pass-tier bullet from the pricing comparison.
 
 import { getCurrentUser, getCurrentWeddingPlan } from "@/lib/session";
 import { canAccessPassFeatures } from "@/lib/plan";
@@ -15,6 +15,7 @@ import { Button, LinkButton } from "@/components/ui/Button";
 import { formatDate } from "@/lib/dates";
 import { downgradeToFree } from "@/server/actions/billing";
 import { signOut } from "@/server/actions/auth";
+import { resetTour } from "@/server/actions/tour";
 
 export default async function SettingsPage() {
   const user = await getCurrentUser();
@@ -55,9 +56,23 @@ export default async function SettingsPage() {
           </form>
         </div>
         <p className="mt-3 rounded-lg bg-akoma-ink/5 px-3 py-2 text-xs text-akoma-ink/50">
-          Sign-up and log-in are real, with secure password storage. Session security is still a simplified
-          version of what a full production rollout would use.
+          Sign-up and log-in are real, backed by Supabase Auth — email/password and Google sign-in both create a
+          genuine, persistent session.
         </p>
+      </Card>
+
+      <Card>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-akoma-ink">Guided tour</h2>
+            <p className="mt-1 text-sm text-akoma-ink/60">Revisit the walkthrough of the dashboard, budget, guests, and more.</p>
+          </div>
+          <form action={resetTour}>
+            <Button type="submit" variant="secondary" size="sm">
+              Restart tour
+            </Button>
+          </form>
+        </div>
       </Card>
 
       <Card>

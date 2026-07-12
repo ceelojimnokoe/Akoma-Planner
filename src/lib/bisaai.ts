@@ -43,6 +43,8 @@ import { prisma } from "./prisma";
 import type { City, Vendor, VendorCategory } from "@prisma/client";
 import { formatGHS } from "./currency";
 import { calculateGuestStats } from "./guests";
+import { getWeddingContext } from "./bisaai-context";
+import { generateProactiveSuggestions, generateQAAnswer, type ProactiveSuggestion } from "./bisaai-qa";
 
 // ---------------------------------------------------------------------------
 // Shared response envelope
@@ -128,62 +130,65 @@ function truncate(s: string, max: number) {
 export interface BasicQAInput {
   weddingPlanId: string;
   question: string;
+  /** The client's own recent question texts this session (see
+   *  useBisaAIChat.ts) — no server-side conversation storage exists, so
+   *  this is how generateQAAnswer (lib/bisaai-qa.ts) knows a topic was
+   *  already covered and should pick a different angle this time. Also
+   *  exactly the shape a real LLM integration would want as history. */
+  recentQuestions?: string[];
 }
 
 export interface BasicQAOutput {
   answer: string;
+  /** 2-3 canned next-question prompts related to what was just answered
+   *  — drives the chat UI's follow-up chips (see useBisaAIChat.ts). */
+  suggestedFollowUps: string[];
 }
 
-// A small keyword-matched knowledge base standing in for a real model.
-// Deliberately simple and inspectable — every answer a user can get is
-// visible right here, which is the point of a mock: predictable, honest,
-// and easy to reason about before real model calls are wired in.
-const QA_KNOWLEDGE_BASE: Array<{ keywords: string[]; answer: string }> = [
-  {
-    keywords: ["budget", "how much", "afford"],
-    answer:
-      "A common starting split for a Ghanaian wedding budget is roughly 25% venue, 20% catering, 15% attire, 15% traditional rites, and the remainder split across photography, decor, music and miscellaneous. Use the Budget tool to set real numbers against your own total — these are just typical proportions, not a rule.",
-  },
-  {
-    keywords: ["traditional", "engagement", "knocking", "bride price"],
-    answer:
-      "Most Akan traditional/engagement ceremonies follow: family arrival and greetings, introductions through the linguist (okyeame), presentation of the bride-price list, the bride is 'found' and presented, a blessing, then a shared meal. Exact order and items vary by ethnic group and family — the Traditional List tool has estimated item costs if that's what you're after.",
-  },
-  {
-    keywords: ["checklist", "timeline", "when should", "how early"],
-    answer:
-      "As a rough guide: lock the date and budget 12 months out, book venue/photographer/caterer 5–6 months out, sort attire 3–5 months out, send invitations 2 months out, and confirm final headcounts and logistics in the last 2 weeks. Your Checklist tab already has this laid out against your actual wedding date.",
-  },
-  {
-    keywords: ["guest", "rsvp", "invite"],
-    answer:
-      "For Ghanaian weddings, it's common for actual attendance to run 10–20% over RSVP'd numbers, especially on the traditional side — caterers are often briefed with a buffer for this. The Guest List tab tracks RSVP status by side if you want to monitor this as replies come in.",
-  },
-];
-
-const QA_FALLBACK_ANSWER =
-  "I don't have a prepared answer for that one yet. Right now BisaAI's Q&A runs on a small fixed knowledge base rather than a real language model — try asking about budget splits, traditional ceremony order, checklist timing, or guest/RSVP planning, or check back once real AI is wired in.";
-
-/** Free-tier Q&A. Real integration TODO: replace the keyword lookup below
- *  with a call to an LLM (OPENAI_API_KEY / ANTHROPIC_API_KEY), passing the
- *  question plus relevant wedding context (city, tradition, date) as
- *  grounding context in the prompt. */
+/** Free-tier Q&A, grounded in the couple's real data via
+ *  getWeddingContext() (lib/bisaai-context.ts) and answered by
+ *  generateQAAnswer() (lib/bisaai-qa.ts) — this function itself stays a
+ *  thin fetch-generate-log wrapper, same shape as every other function
+ *  in this file. Real integration TODO: replace the generateQAAnswer()
+ *  call below with an LLM call (OPENAI_API_KEY / ANTHROPIC_API_KEY),
+ *  passing `ctx` as grounding/system context and `recentQuestions` as
+ *  conversation history — both already assembled here for exactly that. */
 export async function basicQA(input: BasicQAInput): Promise<BisaAIResponse<BasicQAOutput>> {
   const question = input.question.trim();
   if (!question) return fail("Ask BisaAI a question first.");
 
-  const lower = question.toLowerCase();
-  const match = QA_KNOWLEDGE_BASE.find((entry) =>
-    entry.keywords.some((kw) => lower.includes(kw))
-  );
-  const answer = match?.answer ?? QA_FALLBACK_ANSWER;
+  const ctx = await getWeddingContext(input.weddingPlanId);
+  const { answer, suggestedFollowUps } = generateQAAnswer(question, ctx, input.recentQuestions ?? []);
 
   await logAiInteraction(input.weddingPlanId, "basicQA", question, answer);
-  return ok({ answer });
+  return ok({ answer, suggestedFollowUps });
 }
 
 // ---------------------------------------------------------------------------
-// 2. sourceVendors — Pro
+// 1b. getProactiveSuggestions — Free tier
+// ---------------------------------------------------------------------------
+
+export interface ProactiveSuggestionsOutput {
+  suggestions: ProactiveSuggestion[];
+}
+
+/** Dashboard-driven nudges — the "doesn't wait to be asked" half of
+ *  BisaAI. Same grounding data as basicQA, same rule-based-not-LLM
+ *  honesty. Free tier: these are lightweight rule checks, not one of the
+ *  premium generator tools. Real integration TODO: an LLM could
+ *  eventually rank/word these more naturally from `ctx`, but the rule
+ *  set here already decides *which* things are worth surfacing — that
+ *  triage logic would still be useful even with a real model behind it. */
+export async function getProactiveSuggestions(weddingPlanId: string): Promise<BisaAIResponse<ProactiveSuggestionsOutput>> {
+  const ctx = await getWeddingContext(weddingPlanId);
+  const suggestions = generateProactiveSuggestions(ctx).slice(0, 3);
+
+  await logAiInteraction(weddingPlanId, "getProactiveSuggestions", "(dashboard)", `${suggestions.length} suggestion(s)`);
+  return ok({ suggestions });
+}
+
+// ---------------------------------------------------------------------------
+// 2. sourceVendors — Pass
 // ---------------------------------------------------------------------------
 
 export interface SourceVendorsInput {
@@ -196,7 +201,7 @@ export interface SourceVendorsOutput {
   vendors: Vendor[];
 }
 
-/** Pro. Grounded in real local data (no external call, mock or otherwise) —
+/** Pass. Grounded in real local data (no external call, mock or otherwise) —
  *  this just queries the seeded Vendor table, ranked by rating. Real
  *  integration TODO: once a broader/live vendor dataset exists, this could
  *  layer an LLM re-ranking or summarization step on top of the same query,
@@ -218,7 +223,7 @@ export async function sourceVendors(input: SourceVendorsInput): Promise<BisaAIRe
 }
 
 // ---------------------------------------------------------------------------
-// 3. draftVendorMessage / draftNegotiationMessage — Pro, draft only
+// 3. draftVendorMessage / draftNegotiationMessage — Pass, draft only
 // ---------------------------------------------------------------------------
 
 export interface DraftVendorMessageInput {
@@ -232,7 +237,7 @@ export interface DraftMessageOutput {
   draftMessage: string;
 }
 
-/** Pro. Returns drafted text only — see the safety note at the top of this
+/** Pass. Returns drafted text only — see the safety note at the top of this
  *  file. Nothing here creates or sends anything; the caller decides
  *  whether/how to persist the draft as a VendorInterest row.
  *  Real integration TODO: replace the template below with an LLM call
@@ -275,7 +280,7 @@ export interface DraftNegotiationMessageInput {
   notes?: string;
 }
 
-/** Pro. Draft only — same rule as draftVendorMessage above. Real
+/** Pass. Draft only — same rule as draftVendorMessage above. Real
  *  integration TODO: replace the template with an LLM call given the
  *  current quote, target, and any notes, asked to draft a polite,
  *  specific counter-offer or clarifying question. */
@@ -304,7 +309,7 @@ export async function draftNegotiationMessage(input: DraftNegotiationMessageInpu
 }
 
 // ---------------------------------------------------------------------------
-// 4. priceTraditionalList — Pro, estimates only
+// 4. priceTraditionalList — Pass, estimates only
 // ---------------------------------------------------------------------------
 
 export interface PriceTraditionalListInput {
@@ -322,7 +327,7 @@ export interface PriceTraditionalListOutput {
   totalEstimateHighGHS: number;
 }
 
-/** Pro. Reads the seeded TraditionalListItem table (real local reference
+/** Pass. Reads the seeded TraditionalListItem table (real local reference
  *  data) and aggregates it — every price returned is explicitly a range,
  *  never a single number, and meta.disclaimer is always set (safe rule
  *  #3). Real integration TODO: an LLM could help tailor item selection to
@@ -363,7 +368,7 @@ export async function priceTraditionalList(input: PriceTraditionalListInput): Pr
 }
 
 // ---------------------------------------------------------------------------
-// 5. generateShoppingList — Pro, estimates only
+// 5. generateShoppingList — Pass, estimates only
 // ---------------------------------------------------------------------------
 
 export interface GenerateShoppingListInput {
@@ -399,7 +404,7 @@ const SHOPPING_CATALOG: Array<
   { category: "Miscellaneous", itemName: "Ring pillow & flower basket", estLowGHS: 100, estHighGHS: 400, notes: "" } as ShoppingListItem,
 ];
 
-/** Pro. Real integration TODO: an LLM could personalize catalog selection
+/** Pass. Real integration TODO: an LLM could personalize catalog selection
  *  and quantities based on the couple's stated style/preferences; for now
  *  this scales a fixed catalog by guest count, which is at least grounded
  *  in the wedding's real data rather than fully invented. */
@@ -431,7 +436,7 @@ export async function generateShoppingList(input: GenerateShoppingListInput): Pr
 }
 
 // ---------------------------------------------------------------------------
-// 6. dressTryOn — Pro, EXPERIMENTAL STUB, consent-gated
+// 6. dressTryOn — Pass, EXPERIMENTAL STUB, consent-gated
 // ---------------------------------------------------------------------------
 
 export interface DressTryOnInput {
@@ -450,7 +455,7 @@ export interface DressTryOnOutput {
 const DRESS_TRYON_DISCLAIMER =
   "Experimental preview — not accurate. This image is a placeholder in the demo build and must not be used to make purchase decisions.";
 
-/** Pro, experimental. Safe rule #2: consent-gated, and this is a STUB — it
+/** Pass, experimental. Safe rule #2: consent-gated, and this is a STUB — it
  *  never runs a real image model and never persists the uploaded photo.
  *  Intentionally, this function's signature doesn't even accept photo
  *  bytes: the mock ignores photo content entirely rather than pretend to
@@ -477,7 +482,7 @@ export async function dressTryOn(input: DressTryOnInput): Promise<BisaAIResponse
 }
 
 // ---------------------------------------------------------------------------
-// 7. decorMoodboard — Pro, stub
+// 7. decorMoodboard — Pass, stub
 // ---------------------------------------------------------------------------
 
 export interface DecorMoodboardInput {
@@ -491,7 +496,7 @@ export interface DecorMoodboardOutput {
   paletteDescription: string;
 }
 
-/** Pro. Stub — no real image generation. Real integration TODO: call an
+/** Pass. Stub — no real image generation. Real integration TODO: call an
  *  image-generation provider with the requested style/palette and the
  *  wedding's city/tradition as context, and store results against the
  *  wedding rather than regenerating on every view. */
@@ -517,7 +522,7 @@ export async function decorMoodboard(input: DecorMoodboardInput): Promise<BisaAI
 }
 
 // ---------------------------------------------------------------------------
-// 8. generateTimeline — Pro, minute-by-minute, stub
+// 8. generateTimeline — Pass, minute-by-minute, stub
 // ---------------------------------------------------------------------------
 
 export interface GenerateTimelineInput {
@@ -555,7 +560,7 @@ const TIMELINE_TEMPLATE: Array<{ activity: string; durationMinutes: number }> = 
   { activity: "Couple's send-off", durationMinutes: 15 },
 ];
 
-/** Pro. Real integration TODO: an LLM could adjust this running order
+/** Pass. Real integration TODO: an LLM could adjust this running order
  *  based on ceremony type (church vs. registry vs. traditional-only) or
  *  couple preferences supplied via chat; today the template is fixed and
  *  only the clock times are computed dynamically from startTime. */
@@ -572,7 +577,7 @@ export async function generateTimeline(input: GenerateTimelineInput): Promise<Bi
 }
 
 // ---------------------------------------------------------------------------
-// 9. seatingSuggestions — Pro, stub
+// 9. seatingSuggestions — Pass, stub
 // ---------------------------------------------------------------------------
 
 export interface SeatingSuggestionsInput {
@@ -591,7 +596,7 @@ export interface SeatingSuggestionsOutput {
   tables: SeatingTable[];
 }
 
-/** Pro. Grounded in the real guest list (confirmed YES RSVPs only) —
+/** Pass. Grounded in the real guest list (confirmed YES RSVPs only) —
  *  simple rule-based grouping by side, not a real optimizer. Real
  *  integration TODO: an LLM or constraint solver could account for
  *  relationships/conflicts noted by the couple; today it's a greedy
@@ -639,7 +644,7 @@ export async function seatingSuggestions(input: SeatingSuggestionsInput): Promis
 }
 
 // ---------------------------------------------------------------------------
-// 10. honeymoonRecommendations — Pro, estimates only, stub
+// 10. honeymoonRecommendations — Pass, estimates only, stub
 // ---------------------------------------------------------------------------
 
 export interface HoneymoonRecommendationsInput {
@@ -668,7 +673,7 @@ const HONEYMOON_CATALOG: HoneymoonOption[] = [
   { destination: "Seychelles", country: "Seychelles", estLowGHS: 35000, estHighGHS: 70000, description: "High-end private-island beach honeymoon, 5–7 nights including flights." },
 ];
 
-/** Pro. Real integration TODO: an LLM could weigh season, visa
+/** Pass. Real integration TODO: an LLM could weigh season, visa
  *  requirements and stated preferences; today this filters a fixed
  *  catalog by budget only. Every price shown is an estimate range. */
 export async function honeymoonRecommendations(input: HoneymoonRecommendationsInput): Promise<BisaAIResponse<HoneymoonRecommendationsOutput>> {
@@ -687,7 +692,7 @@ export async function honeymoonRecommendations(input: HoneymoonRecommendationsIn
 }
 
 // ---------------------------------------------------------------------------
-// 11. suggestHashtags — Pro, stub
+// 11. suggestHashtags — Pass, stub
 // ---------------------------------------------------------------------------
 
 export interface SuggestHashtagsInput {
@@ -698,7 +703,7 @@ export interface SuggestHashtagsOutput {
   hashtags: string[];
 }
 
-/** Pro. Real integration TODO: an LLM would generate more varied,
+/** Pass. Real integration TODO: an LLM would generate more varied,
  *  creative wordplay; today this is deterministic string manipulation on
  *  the couple's names and wedding year. */
 export async function suggestHashtags(input: SuggestHashtagsInput): Promise<BisaAIResponse<SuggestHashtagsOutput>> {
@@ -720,7 +725,7 @@ export async function suggestHashtags(input: SuggestHashtagsInput): Promise<Bisa
 }
 
 // ---------------------------------------------------------------------------
-// 12. generateSocialPost — Pro, stub
+// 12. generateSocialPost — Pass, stub
 // ---------------------------------------------------------------------------
 
 export interface GenerateSocialPostInput {
@@ -732,7 +737,7 @@ export interface GenerateSocialPostOutput {
   caption: string;
 }
 
-/** Pro. Real integration TODO: an LLM would vary tone/length per
+/** Pass. Real integration TODO: an LLM would vary tone/length per
  *  platform; today it's a single template with a platform-specific
  *  sign-off. */
 export async function generateSocialPost(input: GenerateSocialPostInput): Promise<BisaAIResponse<GenerateSocialPostOutput>> {
@@ -751,7 +756,7 @@ export async function generateSocialPost(input: GenerateSocialPostInput): Promis
 }
 
 // ---------------------------------------------------------------------------
-// 13. draftEmailInvite — Pro, draft only, stub
+// 13. draftEmailInvite — Pass, draft only, stub
 // ---------------------------------------------------------------------------
 
 export interface DraftEmailInviteInput {
@@ -764,7 +769,7 @@ export interface DraftEmailInviteOutput {
   body: string;
 }
 
-/** Pro. Draft only — no email is ever sent from this function; there is
+/** Pass. Draft only — no email is ever sent from this function; there is
  *  no email-sending integration anywhere in this MVP. Real integration
  *  TODO: an LLM could personalize tone per guest relationship; today it's
  *  a single template with a name placeholder filled in. */

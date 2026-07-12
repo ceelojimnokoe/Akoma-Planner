@@ -2,9 +2,9 @@
 //
 // One vendor listing. Every vendor is browsable by everyone — but a
 // vendor marked isProFeatured shows its price/rating/description only to
-// Pro plans; a Free viewer sees the listing exists (name, category, city)
-// with a lock instead of details, which is what "some listings marked
-// Pro-only, visibly present but gated" means in practice.
+// Wedding Pass holders; a Free viewer sees the listing exists (name,
+// category, city) with a lock instead of details, which is what "some
+// listings marked Featured, visibly present but gated" means in practice.
 //
 // Doesn't use the shared <Card> component: Card's own padding applies
 // uniformly on all sides, and fighting that with a conflicting override
@@ -16,7 +16,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Vendor } from "@prisma/client";
-import { Badge, ProBadge } from "@/components/ui/Badge";
+import { Badge, FeaturedBadge } from "@/components/ui/Badge";
 import { formatGHS } from "@/lib/currency";
 import { getVendorImage } from "@/lib/vendor-images";
 
@@ -37,7 +37,7 @@ export function VendorCard({
     <div className="flex flex-col overflow-hidden rounded-xl border border-akoma-ink/10 bg-white shadow-sm">
       <div className="relative h-44 w-full shrink-0 bg-akoma-cream">
         <Image src={getVendorImage(vendor)} alt={vendor.name} fill className="object-cover" />
-        {vendor.isProFeatured && <ProBadge className="absolute left-3 top-3" />}
+        {vendor.isProFeatured && <FeaturedBadge className="absolute left-3 top-3" />}
       </div>
 
       <div className="flex flex-1 flex-col p-5">
@@ -55,7 +55,7 @@ export function VendorCard({
 
         {locked ? (
           <div className="mt-3 flex flex-1 flex-col items-start justify-center rounded-lg bg-akoma-gold/5 p-3 text-sm text-akoma-ink/60">
-            <p>Pricing, rating and contact details are a Pro-featured listing.</p>
+            <p>Pricing, rating and contact details are a featured listing.</p>
           </div>
         ) : (
           <>

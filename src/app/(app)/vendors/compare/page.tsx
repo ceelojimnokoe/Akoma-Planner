@@ -14,7 +14,7 @@ import { formatGHS } from "@/lib/currency";
 import { getVendorImage } from "@/lib/vendor-images";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { UpgradePrompt } from "@/components/pro/UpgradePrompt";
+import { UpgradePrompt } from "@/components/upgrade/UpgradePrompt";
 import { categoryLabel, cityLabel } from "@/components/vendors/VendorCard";
 import { LinkButton } from "@/components/ui/Button";
 

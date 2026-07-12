@@ -7,5 +7,8 @@
 //
 // One-time payment only — no monthly/yearly billing, no plans/intervals.
 // See LEARNING.md for why the subscription model was replaced.
-
+//
+// Verified against a real, live Paystack transaction (temporarily
+// dropped to GH₵5 for that test, a real charge-.success webhook, and the
+// checkout/callback page) before being restored to this real price.
 export const WEDDING_PASS_AMOUNT_GHS = 300;

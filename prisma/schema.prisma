@@ -88,30 +88,40 @@ enum VendorInterestStatus {
 // Identity & membership
 // ---------------------------------------------------------------------------
 
-// A person with an account. Real sign-up now exists (src/server/actions/auth.ts)
-// alongside the original seeded stub — see src/lib/session.ts for how the two
-// coexist. passwordHash is nullable because the seeded stub user (and any
-// future social-login user) may not have one.
+// A person with an account. Real authentication (email/password + Google)
+// is handled entirely by Supabase Auth, not this table — this row is this
+// app's own record of the wedding-planning data a Supabase identity owns,
+// joined to it via supabaseId. See src/lib/supabase/sync-user.ts for the
+// one place a Supabase identity becomes/updates a row here.
 model User {
   id                String   @id @default(cuid())
   email             String   @unique
   name              String
-  // Hashed with Node's built-in crypto.scrypt (src/lib/auth.ts) — never a
-  // plaintext password. Null for the seeded stub account and for social
-  // logins (which don't have a password at all).
+  // Links this row to a real Supabase Auth identity (auth.users.id, a
+  // uuid) — see src/lib/supabase/sync-user.ts. Supabase is the identity
+  // provider; this app's own data (WeddingPlan, Guest, ...) stays in this
+  // local database, joined to Supabase only through this column.
+  supabaseId        String   @unique
+  // No longer written for new users — Supabase owns password storage now.
+  // Kept nullable for the historical seeded row / backward compatibility
+  // only; see src/lib/supabase/sync-user.ts.
   passwordHash      String?
-  // "EMAIL" for a real sign-up, or the social button name ("GOOGLE",
-  // "APPLE", "FACEBOOK", "MICROSOFT") for a lightweight record of intent —
-  // those buttons are disabled/"coming soon" today (see SignUpForm.tsx),
-  // no OAuth is actually wired up yet.
-  authProvider      String   @default("EMAIL")
-  // Never set true by a real verification link (none is sent yet) — only by
-  // the clearly-labelled demo shortcut on /verify-email.
+  // Synced from Supabase's real app_metadata.provider ("email" or
+  // "google") on every sign-in — see sync-user.ts.
+  authProvider      String   @default("email")
+  // Synced from Supabase's real email_confirmed_at — a genuine
+  // verification state now, not a demo flag.
   emailVerified     Boolean  @default(false)
   // Path under /public (e.g. "/uploads/avatars/<id>-<ts>.jpg") written by
   // the upload route handler — see src/app/api/upload/avatar/route.ts for
   // why this is local-disk storage for now, not a real object-storage URL.
+  // For a Google account, synced from Supabase's avatar_url instead (see
+  // sync-user.ts) until the user uploads their own.
   profilePictureUrl String?
+  // First-time guided product tour (see src/components/tour/) — true once
+  // skipped or completed; Settings has a control to flip this back to
+  // false and re-trigger it.
+  hasCompletedTour  Boolean  @default(false)
   createdAt         DateTime @default(now())
 
   ownedWeddingPlans WeddingPlan[]   @relation("WeddingOwner")
@@ -120,7 +130,7 @@ model User {
 
 // Join table between User and WeddingPlan. Having this as its own model
 // (rather than a single ownerId on WeddingPlan) is what lets Collaboration
-// (Pro) add a fiancé/planner later without any schema change — the seam
+// (Pass) add a fiancé/planner later without any schema change — the seam
 // already exists even though the MVP UI only exercises the OWNER role.
 model WeddingMember {
   id            String      @id @default(cuid())
@@ -431,9 +441,9 @@ model Vendor {
   rating        Float          @default(4.5)
   contactPhone  String?
   contactEmail  String?
-  // Pro-only listings are still visible to Free users (browsable) but
+  // Featured listings are still visible to Free users (browsable) but
   // interactions with them (save quote, compare, message) are gated by
-  // requirePro() — enforced in application code, not here.
+  // requirePass() — enforced in application code, not here.
   isProFeatured Boolean        @default(false)
   imageUrl      String?
 

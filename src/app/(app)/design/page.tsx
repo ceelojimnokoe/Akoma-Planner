@@ -1,6 +1,6 @@
 // src/app/(app)/design/page.tsx
 //
-// Pro design tools: a richer home for generateTimeline() and
+// Pass design tools: a richer home for generateTimeline() and
 // seatingSuggestions() from lib/bisaai.ts (linked here from the BisaAI
 // hub instead of duplicated there — see LEARNING.md #19), plus a real,
 // non-mock invitation template gallery. Both AI-backed sections render
@@ -13,7 +13,7 @@ import { requirePass } from "@/lib/plan";
 import { generateTimeline, seatingSuggestions } from "@/lib/bisaai";
 import { Card } from "@/components/ui/Card";
 import { MockBadge } from "@/components/ui/Badge";
-import { UpgradePrompt } from "@/components/pro/UpgradePrompt";
+import { UpgradePrompt } from "@/components/upgrade/UpgradePrompt";
 import { InvitationTemplates } from "@/components/design/InvitationTemplates";
 
 export default async function DesignToolsPage({

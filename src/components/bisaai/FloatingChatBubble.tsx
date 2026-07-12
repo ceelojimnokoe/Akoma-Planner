@@ -3,43 +3,25 @@
 // A persistent bottom-right chat bubble, available on every page inside
 // the app shell (mounted once in (app)/layout.tsx) — so you can ask
 // BisaAI a quick question without leaving whatever you're doing, instead
-// of only from the dedicated /bisaai page. Same free-tier basicQA()
-// action as the full ChatPanel on that page; this component doesn't
-// duplicate that logic on purpose, it's a separate, small, self-contained
-// widget because its layout (collapsible, fixed-position, compact) is
-// genuinely different from a full-page chat panel, not just a resize.
+// of only from the dedicated /bisaai page. Same askBasicQA() action and
+// useBisaAIChat logic as the full ChatPanel on that page; this component
+// doesn't duplicate that logic (see useBisaAIChat.ts), it's a separate,
+// small, self-contained widget because its layout (collapsible, fixed-
+// position, compact) is genuinely different from a full-page chat panel,
+// not just a resize.
 
 "use client";
 
-import { useState, useTransition } from "react";
-import { askBasicQA } from "@/server/actions/bisaai";
+import { useState } from "react";
+import { useBisaAIChat } from "@/components/bisaai/useBisaAIChat";
+import { ChatChip } from "@/components/bisaai/ChatChip";
+import { TypingDots } from "@/components/bisaai/TypingDots";
 import { MockBadge } from "@/components/ui/Badge";
-
-interface Message {
-  role: "user" | "assistant";
-  text: string;
-}
 
 export function FloatingChatBubble({ weddingPlanId }: { weddingPlanId: string }) {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", text: "Hi! Quick question? Ask away — for the full toolkit, visit the BisaAI page." },
-  ]);
-  const [input, setInput] = useState("");
-  const [isPending, startTransition] = useTransition();
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const question = input.trim();
-    if (!question) return;
-    setMessages((prev) => [...prev, { role: "user", text: question }]);
-    setInput("");
-    startTransition(async () => {
-      const result = await askBasicQA(weddingPlanId, question);
-      const answer = result.ok ? result.data.answer : (result.error ?? "Something went wrong.");
-      setMessages((prev) => [...prev, { role: "assistant", text: answer }]);
-    });
-  }
+  const { messages, input, setInput, isPending, handleSubmit, handleChipClick, showStarters, starterPrompts, followUps } =
+    useBisaAIChat(weddingPlanId);
 
   if (!open) {
     return (
@@ -83,7 +65,23 @@ export function FloatingChatBubble({ weddingPlanId }: { weddingPlanId: string })
             </p>
           </div>
         ))}
-        {isPending && <p className="text-xs text-akoma-ink/40">BisaAI is thinking…</p>}
+        {isPending && <TypingDots />}
+
+        {showStarters && !isPending && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {starterPrompts.slice(0, 4).map((prompt) => (
+              <ChatChip key={prompt} label={prompt} onClick={() => handleChipClick(prompt)} />
+            ))}
+          </div>
+        )}
+
+        {!showStarters && followUps.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {followUps.map((prompt) => (
+              <ChatChip key={prompt} label={prompt} onClick={() => handleChipClick(prompt)} disabled={isPending} />
+            ))}
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="flex gap-2 border-t border-akoma-ink/10 p-2">
