@@ -12,32 +12,48 @@
 // filters/sorts this same shared list and decides what to share with
 // each side — rather than a persisted per-listing tag.
 //
-// Cards follow the same "image occupies the top, info below" shell as
-// VendorCard (components/vendors/VendorCard.tsx) for visual consistency
-// across the two listing surfaces.
+// Cards (AccommodationCard.tsx) follow the same "image on top, info
+// below, clickable image/title + a budget-fit badge" shell as
+// VendorCard.tsx for consistency across the two listing surfaces — same
+// "Within my budget" filter too, matched against a BudgetCategory
+// literally named "Accommodation" (see lib/budget-fit.ts). No
+// isProFeatured-style lock exists here, so there's no equivalent
+// price-leak risk to guard against the way vendors' filter does.
 
-import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWeddingPlan } from "@/lib/session";
-import { formatGHS } from "@/lib/currency";
-import { getAccommodationImage } from "@/lib/accommodation-images";
-import { Badge } from "@/components/ui/Badge";
+import { AccommodationCard } from "@/components/accommodation/AccommodationCard";
+import { getBudgetFit, matchBudgetCategoryByName, type BudgetFitResult } from "@/lib/budget-fit";
 import type { City } from "@prisma/client";
+import Link from "next/link";
 
 export default async function AccommodationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ city?: string }>;
+  searchParams: Promise<{ city?: string; withinBudget?: string }>;
 }) {
-  const { city: cityParam } = await searchParams;
+  const { city: cityParam, withinBudget } = await searchParams;
   const weddingPlan = await getCurrentWeddingPlan();
   const city = (cityParam as City) ?? weddingPlan!.city;
 
-  const accommodations = await prisma.accommodation.findMany({
-    where: { city },
-    include: { nearVendor: true },
-    orderBy: { distanceFromVenueKm: "asc" },
-  });
+  const [accommodations, budgetCategories] = await Promise.all([
+    prisma.accommodation.findMany({
+      where: { city },
+      include: { nearVendor: true },
+      orderBy: { distanceFromVenueKm: "asc" },
+    }),
+    prisma.budgetCategory.findMany({ where: { weddingPlanId: weddingPlan!.id } }),
+  ]);
+
+  const matchedCategory = matchBudgetCategoryByName("Accommodation", budgetCategories);
+  const budgetFitById: Record<string, BudgetFitResult> = {};
+  if (matchedCategory) {
+    for (const a of accommodations) {
+      budgetFitById[a.id] = getBudgetFit(a.priceLowGHS, matchedCategory);
+    }
+  }
+
+  const visibleAccommodations = withinBudget === "1" ? accommodations.filter((a) => budgetFitById[a.id]?.fits) : accommodations;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -49,7 +65,7 @@ export default async function AccommodationPage({
         </p>
       </div>
 
-      <form method="get" className="flex items-end gap-3">
+      <form method="get" className="flex flex-wrap items-end gap-3">
         <div>
           <label className="mb-1 block text-xs font-medium text-akoma-ink/70">City</label>
           <select
@@ -61,60 +77,42 @@ export default async function AccommodationPage({
             <option value="KUMASI">Kumasi</option>
           </select>
         </div>
+        <label className="flex items-center gap-1.5 pb-2.5 text-sm text-akoma-ink/70">
+          <input
+            type="checkbox"
+            name="withinBudget"
+            value="1"
+            defaultChecked={withinBudget === "1"}
+            className="h-4 w-4 rounded border-akoma-ink/30 text-akoma-green focus:ring-akoma-green"
+          />
+          Within my budget
+        </label>
         <button type="submit" className="rounded-lg bg-akoma-green px-4 py-2 text-sm font-medium text-white hover:bg-akoma-green/90">
           Update
         </button>
+        {withinBudget && (
+          <Link href={`/accommodation?city=${city}`} className="pb-2.5 text-sm text-akoma-ink/50 hover:underline">
+            Clear
+          </Link>
+        )}
       </form>
 
-      {accommodations.length === 0 ? (
-        <p className="py-8 text-center text-sm text-akoma-ink/50">No accommodation listings for this city yet.</p>
+      {!matchedCategory && withinBudget === "1" && (
+        <p className="rounded-lg bg-akoma-ink/5 px-3 py-2 text-xs text-akoma-ink/50">
+          Add an &quot;Accommodation&quot; category on the Budget page to compare listings against it.
+        </p>
+      )}
+
+      {visibleAccommodations.length === 0 ? (
+        <p className="py-8 text-center text-sm text-akoma-ink/50">No accommodation listings match those filters.</p>
       ) : (
         // sm:pr-20: keeps the rightmost card in each row clear of the
         // floating chat bubble (fixed to the viewport corner) — see the
         // matching comment on dashboard's "Budget by category" card.
         <div className="grid gap-6 pr-0 sm:grid-cols-2 sm:pr-20 lg:grid-cols-3">
-          {accommodations.map((a) => {
-            const amenities = a.amenities ? a.amenities.split(",").map((s) => s.trim()).filter(Boolean) : [];
-            return (
-              <div
-                key={a.id}
-                className="flex flex-col overflow-hidden rounded-xl border border-akoma-ink/10 bg-white shadow-sm"
-              >
-                <div className="relative h-44 w-full shrink-0 bg-akoma-cream">
-                  <Image src={getAccommodationImage(a)} alt={a.name} fill className="object-cover" />
-                </div>
-                <div className="flex flex-1 flex-col p-5">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-akoma-ink">{a.name}</h3>
-                    <Badge tone="gold" className="shrink-0">★ {a.rating.toFixed(1)}</Badge>
-                  </div>
-                  <p className="mt-1 text-xs text-akoma-ink/50">
-                    {a.distanceFromVenueKm.toFixed(1)} km from {a.nearVendor?.name ?? "the venue"}
-                  </p>
-                  {a.description && <p className="mt-3 flex-1 text-sm text-akoma-ink/70">{a.description}</p>}
-                  {amenities.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {amenities.map((amenity) => (
-                        <span
-                          key={amenity}
-                          className="rounded-full bg-akoma-cream px-2.5 py-1 text-xs text-akoma-ink/70"
-                        >
-                          {amenity}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <div className="mt-4 flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-akoma-ink">
-                      {formatGHS(a.priceLowGHS)}–{formatGHS(a.priceHighGHS)}{" "}
-                      <span className="font-normal text-akoma-ink/50">/ night</span>
-                    </p>
-                    {a.contactPhone && <p className="text-xs text-akoma-ink/50">{a.contactPhone}</p>}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {visibleAccommodations.map((a) => (
+            <AccommodationCard key={a.id} accommodation={a} budgetFit={budgetFitById[a.id]} />
+          ))}
         </div>
       )}
     </div>

@@ -34,6 +34,19 @@ export function isSameDay(a: Date, b: Date): boolean {
  * the calendar page just maps over the result and checks isSameDay
  * against whatever events it already fetched.
  */
+/**
+ * The 7 days (Monday-first) of the week containing `date` — same
+ * Monday-first convention and Date-overflow-normalization trick as
+ * getMonthGrid below, just for a single week instead of a whole month
+ * grid. Used by the calendar's Week view.
+ */
+export function getWeekDays(date: Date): Date[] {
+  // getDay(): 0=Sunday..6=Saturday. Convert to Monday-first (0=Monday..6=Sunday).
+  const dayOffset = (date.getDay() + 6) % 7;
+  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate() - dayOffset);
+  return Array.from({ length: 7 }, (_, i) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i));
+}
+
 export function getMonthGrid(year: number, month: number): Date[][] {
   // getDay(): 0=Sunday..6=Saturday. Convert to Monday-first (0=Monday..6=Sunday).
   const leadingDays = (new Date(year, month, 1).getDay() + 6) % 7;

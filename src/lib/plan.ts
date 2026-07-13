@@ -72,6 +72,19 @@ export function canAddGuest(weddingPlan: { hasWeddingPass: boolean }, existingGu
   };
 }
 
+/** A distinct check from canAddGuest above: this gates the couple's own
+ *  *estimate* number (WeddingPlan.guestEstimate) when they edit it,
+ *  rather than actual Guest rows added. Without the Pass: capped at
+ *  FREE_LIMITS.maxGuests, same ceiling, different thing being counted. */
+export function canSetGuestEstimate(weddingPlan: { hasWeddingPass: boolean }, guestEstimate: number): PassGateResult {
+  if (canAccessPassFeatures(weddingPlan)) return { allowed: true };
+  if (guestEstimate <= FREE_LIMITS.maxGuests) return { allowed: true };
+  return {
+    allowed: false,
+    upgradeReason: `Free accounts are capped at ${FREE_LIMITS.maxGuests} guests. Get the Wedding Pass for unlimited guest management.`,
+  };
+}
+
 /** Without the Pass: capped at FREE_LIMITS.maxCustomChecklistItems custom
  *  tasks (default checklist items don't count). */
 export function canAddChecklistItem(

@@ -8,6 +8,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentWeddingPlan } from "@/lib/session";
 import { DEFAULT_CHECKLIST_TEMPLATE } from "@/lib/checklist-defaults";
+import { getChecklistTone } from "@/lib/checklist-tone";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Card } from "@/components/ui/Card";
 import { ChecklistItemRow } from "@/components/checklist/ChecklistItemRow";
@@ -47,7 +48,12 @@ export default async function ChecklistPage() {
       </Card>
 
       <div className="grid grid-cols-3 gap-4">
-        <StatCard label="Progress" value={`${percent}%`} subtext={`${doneCount} of ${items.length} done`} />
+        <StatCard
+          label="Progress"
+          value={`${percent}%`}
+          subtext={`${doneCount} of ${items.length} done`}
+          ring={{ percent, tone: getChecklistTone(percent) }}
+        />
         <StatCard label="Overdue" value={String(overdueCount)} subtext={overdueCount ? "Needs attention" : "All caught up"} />
         <StatCard label="Total tasks" value={String(items.length)} />
       </div>

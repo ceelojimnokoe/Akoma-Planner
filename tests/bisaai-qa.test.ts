@@ -27,6 +27,7 @@ function buildContext(overrides: Partial<WeddingContext> = {}): WeddingContext {
     guests: {
       totalRecords: 100,
       confirmedRecords: 60,
+      pendingRecords: 35,
       totalAttendees: 120,
       confirmedAttendees: 70,
       pendingAttendees: 40,
@@ -49,7 +50,7 @@ describe("generateQAAnswer", () => {
 
   it("matches the spec's exact 'guests planned vs accepted' style for RSVP questions", () => {
     const ctx = buildContext({
-      guests: { totalRecords: 200, confirmedRecords: 48, totalAttendees: 210, confirmedAttendees: 48, pendingAttendees: 150, declinedAttendees: 12 },
+      guests: { totalRecords: 200, confirmedRecords: 48, pendingRecords: 140, totalAttendees: 210, confirmedAttendees: 48, pendingAttendees: 150, declinedAttendees: 12 },
       daysUntil: 90,
     });
     const { answer, topic } = generateQAAnswer("How are my RSVPs going?", ctx);
@@ -94,7 +95,7 @@ describe("generateProactiveSuggestions", () => {
     const ctx = buildContext({
       budget: { totalBudgetGHS: 100_000, totalAllocatedGHS: 50_000, totalSpentGHS: 30_000, unallocatedGHS: 50_000, remainingGHS: 70_000, percentSpent: 30, categories: [] },
       checklist: { percent: 40, doneCount: 8, totalCount: 20, overdueCount: 0, upcomingCount: 12 },
-      guests: { totalRecords: 50, confirmedRecords: 20, totalAttendees: 55, confirmedAttendees: 22, pendingAttendees: 8, declinedAttendees: 5 },
+      guests: { totalRecords: 50, confirmedRecords: 20, pendingRecords: 7, totalAttendees: 55, confirmedAttendees: 22, pendingAttendees: 8, declinedAttendees: 5 },
       daysUntil: 200,
     });
     const suggestions = generateProactiveSuggestions(ctx);
@@ -131,7 +132,7 @@ describe("generateProactiveSuggestions", () => {
 
   it("flags a large pending-RSVP backlog", () => {
     const ctx = buildContext({
-      guests: { totalRecords: 100, confirmedRecords: 20, totalAttendees: 100, confirmedAttendees: 20, pendingAttendees: 60, declinedAttendees: 20 },
+      guests: { totalRecords: 100, confirmedRecords: 20, pendingRecords: 60, totalAttendees: 100, confirmedAttendees: 20, pendingAttendees: 60, declinedAttendees: 20 },
     });
     const suggestions = generateProactiveSuggestions(ctx);
     expect(suggestions.some((s) => s.id === "rsvp-backlog")).toBe(true);
@@ -147,7 +148,7 @@ describe("generateProactiveSuggestions", () => {
     const ctx = buildContext({
       budget: { ...buildContext().budget, percentSpent: 90 },
       checklist: { percent: 70, doneCount: 14, totalCount: 20, overdueCount: 2, upcomingCount: 4 },
-      guests: { totalRecords: 100, confirmedRecords: 20, totalAttendees: 100, confirmedAttendees: 20, pendingAttendees: 60, declinedAttendees: 20 },
+      guests: { totalRecords: 100, confirmedRecords: 20, pendingRecords: 60, totalAttendees: 100, confirmedAttendees: 20, pendingAttendees: 60, declinedAttendees: 20 },
     });
     const suggestions = generateProactiveSuggestions(ctx);
     const severities = suggestions.map((s) => s.severity);

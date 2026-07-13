@@ -20,13 +20,20 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { VendorStatusCard } from "@/components/dashboard/VendorStatusCard";
 import { WeddingStyleCard } from "@/components/dashboard/WeddingStyleCard";
 import { GuestProgressCard } from "@/components/dashboard/GuestProgressCard";
+import { PendingGuestsCard } from "@/components/dashboard/PendingGuestsCard";
+import { WeddingHealthCard } from "@/components/dashboard/WeddingHealthCard";
 import { BisaAISuggestionsCard } from "@/components/dashboard/BisaAISuggestionsCard";
-import { calculateGuestStats } from "@/lib/guests";
+import { calculateGuestStats, selectPendingGuestFollowUps } from "@/lib/guests";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { getBudgetTone } from "@/lib/budget-tone";
+import { getChecklistTone } from "@/lib/checklist-tone";
+import { sortByFocusPriority } from "@/lib/checklist-sort";
+import { getWeddingHealthScore } from "@/lib/wedding-health";
+import { ONBOARDING_VENDOR_CATEGORIES } from "@/lib/validation/wedding";
+import { PRIORITY_TONE } from "@/components/checklist/ChecklistItemRow";
 import { BudgetAlertWatcher } from "@/components/budget/BudgetAlertWatcher";
 
 export default async function DashboardPage() {
@@ -47,6 +54,12 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     prisma.budgetCategory.findMany({
       where: { weddingPlanId: weddingPlan!.id },
+      // Matches budget/page.tsx's own existing convention — without
+      // this, the "Budget by category" card's slice(0, 6) below fell
+      // back to DB insertion order, which had no relationship to size
+      // or importance and only got less predictable as the default
+      // split grew past 6 entries.
+      orderBy: { createdAt: "asc" },
     }),
     prisma.checklistItem.findMany({
       where: { weddingPlanId: weddingPlan!.id },
@@ -80,14 +93,27 @@ export default async function DashboardPage() {
   const checklistPercent = checklistItems.length
     ? Math.round((doneCount / checklistItems.length) * 100)
     : 0;
-  const upcomingTasks = checklistItems.filter((i) => !i.done).slice(0, 5);
-  // This week's focus: the checklist items that actually matter most right
-  // now — not done, marked HIGH priority, soonest due date first.
-  const focusTasks = checklistItems
-    .filter((i) => !i.done && i.priority === "HIGH")
-    .slice(0, 5);
+  // This week's focus: nearest due date first regardless of priority, so
+  // the couple sees what actually needs attention next — priority only
+  // breaks a tie on the same due date. See lib/checklist-sort.ts.
+  const focusTasks = sortByFocusPriority(checklistItems).slice(0, 5);
   const guestStats = calculateGuestStats(guests);
+  // Pending guest confirmations: longest-waiting first — see lib/guests.ts.
+  const pendingGuests = selectPendingGuestFollowUps(guests, 5);
   const days = daysUntil(weddingPlan!.weddingDate);
+
+  const vendorsBookedCount = vendorBookingStatuses.filter((s) => s.status === "BOOKED").length;
+  const health = getWeddingHealthScore({
+    checklistPercent,
+    weddingPlanCreatedAt: weddingPlan!.createdAt,
+    weddingDate: weddingPlan!.weddingDate,
+    budgetPercentSpent: budget.percentSpent,
+    budgetRemainingGHS: budget.remainingGHS,
+    vendorsBookedCount,
+    vendorsTotalCount: ONBOARDING_VENDOR_CATEGORIES.length,
+    guestsConfirmedAttendees: guestStats.confirmedAttendees,
+    guestsTotalAttendees: guestStats.totalAttendees,
+  });
 
   // Additive, not a replacement for TopBar's coupleNames title — falls
   // back to a plain greeting once the couple has filled in display names.
@@ -125,6 +151,7 @@ export default async function DashboardPage() {
           label="Wedding countdown"
           value={days >= 0 ? `${days} days` : "Past"}
           subtext={formatDate(weddingPlan!.weddingDate)}
+          emphasis
         />
         <StatCard
           label="Budget spent"
@@ -139,7 +166,7 @@ export default async function DashboardPage() {
           label="Checklist progress"
           value={`${checklistPercent}%`}
           subtext={`${doneCount} of ${checklistItems.length} tasks done`}
-          ring={{ percent: checklistPercent }}
+          ring={{ percent: checklistPercent, tone: getChecklistTone(checklistPercent) }}
         />
         <StatCard
           label="Guests confirmed"
@@ -147,6 +174,8 @@ export default async function DashboardPage() {
           subtext={`of ${guestStats.totalAttendees} invited (est. ${weddingPlan!.guestEstimate})`}
         />
       </div>
+
+      <WeddingHealthCard health={health} />
 
       <BisaAISuggestionsCard suggestions={suggestions} />
 
@@ -157,19 +186,16 @@ export default async function DashboardPage() {
               This week&apos;s focus
             </h2>
             <p className="text-xs text-akoma-ink/50">
-              Your highest-priority tasks, soonest due date first.
+              Your soonest deadlines, regardless of priority.
             </p>
           </div>
-          <Link
-            href="/checklist"
-            className="text-sm text-akoma-green hover:underline"
-          >
+          <LinkButton href="/checklist" variant="ghost" size="sm">
             View checklist →
-          </Link>
+          </LinkButton>
         </div>
         {focusTasks.length === 0 ? (
           <p className="text-sm text-akoma-ink/60">
-            No outstanding high-priority tasks — nice work.
+            Nothing outstanding — nice work.
           </p>
         ) : (
           <ul className="divide-y divide-akoma-ink/10">
@@ -179,7 +205,9 @@ export default async function DashboardPage() {
                 className="flex items-center justify-between py-2.5"
               >
                 <div className="flex items-center gap-2">
-                  <Badge tone="terracotta">High</Badge>
+                  <Badge tone={PRIORITY_TONE[task.priority]}>
+                    {task.priority.charAt(0) + task.priority.slice(1).toLowerCase()}
+                  </Badge>
                   <span className="text-sm font-medium text-akoma-ink">
                     {task.title}
                   </span>
@@ -200,47 +228,7 @@ export default async function DashboardPage() {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-semibold text-akoma-ink">Upcoming tasks</h2>
-            <Link
-              href="/checklist"
-              className="text-sm text-akoma-green hover:underline"
-            >
-              View checklist →
-            </Link>
-          </div>
-          {upcomingTasks.length === 0 ? (
-            <p className="text-sm text-akoma-ink/60">
-              Nothing outstanding — nice work.
-            </p>
-          ) : (
-            <ul className="divide-y divide-akoma-ink/10">
-              {upcomingTasks.map((task) => (
-                <li
-                  key={task.id}
-                  className="flex items-center justify-between py-3"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-akoma-ink">
-                      {task.title}
-                    </p>
-                    <p className="text-xs text-akoma-ink/50">{task.category}</p>
-                  </div>
-                  {task.dueDate && (
-                    <Badge
-                      tone={
-                        daysUntil(task.dueDate) < 0 ? "terracotta" : "neutral"
-                      }
-                    >
-                      {formatDate(task.dueDate)}
-                    </Badge>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+        <PendingGuestsCard pendingCount={guestStats.pendingRecords} pendingGuests={pendingGuests} />
 
         {/* sm:pr-20: this card sits at the bottom-right of a mid-page row —
             well before the true bottom of the dashboard — so the floating
@@ -252,12 +240,9 @@ export default async function DashboardPage() {
         <Card className="sm:pr-20">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-semibold text-akoma-ink">Budget by category</h2>
-            <Link
-              href="/budget"
-              className="text-sm text-akoma-green hover:underline"
-            >
+            <LinkButton href="/budget" variant="ghost" size="sm">
               View budget →
-            </Link>
+            </LinkButton>
           </div>
           <ul className="space-y-3">
             {budget.categories.slice(0, 6).map((c) => (

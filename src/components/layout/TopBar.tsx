@@ -16,6 +16,7 @@ import { MobileNavDrawer } from "@/components/layout/MobileNavDrawer";
 import type { SidebarUser } from "@/components/layout/Sidebar";
 import { syncComputedNotifications, getRecentNotifications } from "@/lib/notifications";
 import { NotificationBell } from "@/components/layout/NotificationBell";
+import { TopBarCountdown } from "@/components/layout/TopBarCountdown";
 
 export async function TopBar({ weddingPlan, user }: { weddingPlan: WeddingPlan; user: SidebarUser }) {
   const days = daysUntil(weddingPlan.weddingDate);
@@ -29,10 +30,7 @@ export async function TopBar({ weddingPlan, user }: { weddingPlan: WeddingPlan; 
         <MobileNavDrawer user={user} hasWeddingPass={weddingPlan.hasWeddingPass} />
         <div>
           <h1 className="font-semibold text-akoma-ink">{weddingPlan.coupleNames}</h1>
-          <p className="text-sm text-akoma-ink/60">
-            {days >= 0 ? `${days} day${days === 1 ? "" : "s"} to go` : "Wedding day has passed"} ·{" "}
-            {weddingPlan.city.charAt(0) + weddingPlan.city.slice(1).toLowerCase()}
-          </p>
+          <TopBarCountdown days={days} city={weddingPlan.city.charAt(0) + weddingPlan.city.slice(1).toLowerCase()} />
         </div>
       </div>
       <div className="flex items-center gap-3">

@@ -9,9 +9,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
-import { canCreateWeddingPlan } from "@/lib/plan";
+import { canCreateWeddingPlan, canSetGuestEstimate } from "@/lib/plan";
 import { onboardingSchema, type OnboardingInput } from "@/lib/validation/wedding";
 import { buildDefaultChecklist } from "@/lib/checklist-defaults";
 import { buildDefaultBudgetCategories } from "@/lib/budget-defaults";
@@ -137,4 +139,39 @@ export async function createWeddingPlan(rawInput: OnboardingInput): Promise<Crea
   });
 
   redirect(`/onboarding/complete?weddingPlanId=${weddingPlan.id}`);
+}
+
+const guestEstimateSchema = z.coerce.number().int().min(1, "Guest estimate must be at least 1").max(20000);
+
+export interface UpdateGuestEstimateResult {
+  ok: boolean;
+  error?: string;
+  /** True specifically when a Free-plan cap blocked this — distinct from
+   *  a plain validation error, so the UI can show the friendly
+   *  UpgradePrompt treatment instead of a raw red error line. */
+  upgradeRequired?: boolean;
+}
+
+/**
+ * Edits the couple's own guest-count estimate after onboarding — a
+ * distinct number from actual Guest rows on the guest list (see
+ * canSetGuestEstimate in lib/plan.ts, a different gate from the one that
+ * caps real guest rows added). Same 1-20000 range onboarding's own
+ * GuestInfoStep already validates, so a couple can't drift the estimate
+ * to a value the original wizard would never have accepted.
+ */
+export async function updateGuestEstimate(weddingPlanId: string, rawGuestEstimate: number): Promise<UpdateGuestEstimateResult> {
+  const parsed = guestEstimateSchema.safeParse(rawGuestEstimate);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid guest estimate" };
+  }
+
+  const weddingPlan = await prisma.weddingPlan.findUniqueOrThrow({ where: { id: weddingPlanId } });
+  const gate = canSetGuestEstimate(weddingPlan, parsed.data);
+  if (!gate.allowed) return { ok: false, error: gate.upgradeReason, upgradeRequired: true };
+
+  await prisma.weddingPlan.update({ where: { id: weddingPlanId }, data: { guestEstimate: parsed.data } });
+  revalidatePath("/guests");
+  revalidatePath("/dashboard");
+  return { ok: true };
 }

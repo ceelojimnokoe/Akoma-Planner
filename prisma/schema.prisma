@@ -170,6 +170,12 @@ model WeddingPlan {
   // (/w/[shareToken]). Regenerable from settings if it ever leaks.
   shareToken String @unique @default(cuid())
 
+  // Which Design Tools invitation template the couple has picked, by id
+  // (see lib/invitation-templates.ts — the static registry this points
+  // into; not a foreign key, since templates aren't a DB table). Nullable:
+  // no template chosen yet is a valid, common state.
+  selectedInvitationTemplateId String?
+
   ownerUserId String
   owner       User   @relation("WeddingOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
 
@@ -183,6 +189,8 @@ model WeddingPlan {
   vendorBookingStatuses VendorBookingStatus[]
   notifications         Notification[]
   payments              Payment[]
+  timelineEntries       TimelineEntry[]
+  seatingAssignments    SeatingAssignment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -388,6 +396,11 @@ model ChecklistItem {
   weddingPlan   WeddingPlan @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
   title         String
   category      String
+  // Shown in the calendar's task-detail popup alongside a static,
+  // category-keyed "planning tip" (not stored here — see
+  // CATEGORY_TIPS in checklist-defaults.ts). Real, written descriptions
+  // for every default template item; blank for custom user-added tasks.
+  description   String?
   dueDate       DateTime?
   done          Boolean     @default(false)
   // Seeded from the default Ghana wedding checklist template vs. added by
@@ -421,7 +434,26 @@ model Guest {
   rsvpStatus    RsvpStatus  @default(PENDING)
   contact       String?
   plusOne       Boolean     @default(false)
+  // Free-form relationship tag for the seating chart's grouping tools
+  // (src/components/design/) — nullable, set from either the Guest List
+  // page or in-context within the seating tool itself, both via the same
+  // updateGuestGroup() action. Lives on Guest rather than a seating-only
+  // side table: one nullable field, and it makes the tag visible/
+  // reusable on the Guest List page too, not just in the seating tool.
+  guestGroup    GuestGroup?
   createdAt     DateTime    @default(now())
+
+  seatingAssignment SeatingAssignment?
+}
+
+enum GuestGroup {
+  BRIDE_FAMILY
+  GROOM_FAMILY
+  BRIDESMAID
+  GROOMSMAN
+  VIP
+  PARENT
+  CHILD
 }
 
 // ---------------------------------------------------------------------------
@@ -583,4 +615,46 @@ model Notification {
   createdAt     DateTime         @default(now())
 
   @@unique([weddingPlanId, key])
+}
+
+// ---------------------------------------------------------------------------
+// Design Tools (Pass): persisted timeline + seating chart
+// ---------------------------------------------------------------------------
+
+// The wedding-day timeline, editable and auto-saved — a real change from
+// how this worked before (generateTimeline() in lib/bisaai.ts computed a
+// fresh default every render, nothing persisted). getOrCreateTimeline()
+// (server/actions/timeline.ts) seeds these rows from that same default
+// template on first access; every row after that reflects the couple's
+// own edits. No @@unique on sortOrder deliberately — the reorder
+// swap (two adjacent rows exchanging sortOrder in one transaction) would
+// risk a transient collision against a hard constraint on SQLite, which
+// checks UNIQUE per-statement, not deferred to end-of-transaction.
+model TimelineEntry {
+  id              String      @id @default(cuid())
+  weddingPlanId   String
+  weddingPlan     WeddingPlan @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
+  time            String // "HH:MM", same convention generateTimeline() already used
+  activity        String
+  durationMinutes Int
+  sortOrder       Int
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([weddingPlanId, sortOrder])
+}
+
+// Which table a confirmed guest is assigned to — also new persistence
+// (seatingSuggestions() in lib/bisaai.ts used to compute a fresh
+// suggestion every render, nothing saved). One row per guest max
+// (@unique on guestId): a guest can only be at one table at a time, and
+// re-assigning is an update, not a second row.
+model SeatingAssignment {
+  id            String      @id @default(cuid())
+  weddingPlanId String
+  weddingPlan   WeddingPlan @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
+  guestId       String      @unique
+  guest         Guest       @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  tableNumber   Int
+  updatedAt     DateTime    @updatedAt
 }

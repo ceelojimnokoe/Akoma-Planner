@@ -19,6 +19,7 @@ import type { Vendor } from "@prisma/client";
 import { Badge, FeaturedBadge } from "@/components/ui/Badge";
 import { formatGHS } from "@/lib/currency";
 import { getVendorImage } from "@/lib/vendor-images";
+import type { BudgetFitResult } from "@/lib/budget-fit";
 
 export function VendorCard({
   vendor,
@@ -26,30 +27,39 @@ export function VendorCard({
   selectable,
   selected,
   onToggleSelect,
+  budgetFit,
 }: {
   vendor: Vendor;
   locked: boolean;
   selectable?: boolean;
   selected?: boolean;
   onToggleSelect?: (vendorId: string) => void;
+  /** Omitted entirely for a locked card — price is hidden there, and a
+   *  fit badge would leak a cheaper/pricier signal through the lock.
+   *  undefined also just means "no matching budget category" — see
+   *  lib/budget-fit.ts's own no-match-means-no-indicator rule. */
+  budgetFit?: BudgetFitResult;
 }) {
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-akoma-ink/10 bg-white shadow-sm">
-      <div className="relative h-44 w-full shrink-0 bg-akoma-cream">
+      <Link href={`/vendors/${vendor.id}`} className="relative block h-44 w-full shrink-0 bg-akoma-cream">
         <Image src={getVendorImage(vendor)} alt={vendor.name} fill className="object-cover" />
         {vendor.isProFeatured && <FeaturedBadge className="absolute left-3 top-3" />}
-      </div>
+      </Link>
 
       <div className="flex flex-1 flex-col p-5">
-        <h3 className="font-semibold text-akoma-ink">{vendor.name}</h3>
+        <Link href={`/vendors/${vendor.id}`} className="w-fit">
+          <h3 className="font-semibold text-akoma-ink hover:text-akoma-green hover:underline">{vendor.name}</h3>
+        </Link>
         <div className="mt-1 flex items-center gap-2 text-xs text-akoma-ink/50">
           <span>{categoryLabel(vendor.category)}</span>
           <span>·</span>
           <span>{cityLabel(vendor.city)}</span>
         </div>
         {!locked && (
-          <div className="mt-2">
+          <div className="mt-2 flex items-center gap-2">
             <Badge tone="gold">★ {vendor.rating.toFixed(1)}</Badge>
+            {budgetFit && <Badge tone={budgetFit.fits ? "green" : "terracotta"}>{budgetFit.label}</Badge>}
           </div>
         )}
 

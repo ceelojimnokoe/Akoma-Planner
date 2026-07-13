@@ -12,7 +12,17 @@ const CATEGORIES = [
   "MUSIC", "MAKEUP", "TRANSPORT", "CAKE", "OTHER",
 ] as const;
 
-export function VendorFilters({ category, city, featured }: { category?: string; city?: string; featured?: string }) {
+export function VendorFilters({
+  category,
+  city,
+  featured,
+  withinBudget,
+}: {
+  category?: string;
+  city?: string;
+  featured?: string;
+  withinBudget?: string;
+}) {
   return (
     <form method="get" className="flex flex-wrap items-end gap-3">
       <div>
@@ -42,10 +52,20 @@ export function VendorFilters({ category, city, featured }: { category?: string;
           <option value="FEATURED">Featured</option>
         </select>
       </div>
+      <label className="flex items-center gap-1.5 pb-2.5 text-sm text-akoma-ink/70">
+        <input
+          type="checkbox"
+          name="withinBudget"
+          value="1"
+          defaultChecked={withinBudget === "1"}
+          className="h-4 w-4 rounded border-akoma-ink/30 text-akoma-green focus:ring-akoma-green"
+        />
+        Within my budget
+      </label>
       <button type="submit" className="rounded-lg bg-akoma-green px-4 py-2 text-sm font-medium text-white hover:bg-akoma-green/90">
         Filter
       </button>
-      {(category || city || featured) && (
+      {(category || city || featured || withinBudget) && (
         <Link href="/vendors" className="text-sm text-akoma-ink/50 hover:underline">
           Clear
         </Link>

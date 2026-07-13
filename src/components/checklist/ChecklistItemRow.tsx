@@ -13,17 +13,22 @@ import type { ChecklistItem } from "@prisma/client";
 import { toggleChecklistItem, deleteChecklistItem, updateChecklistItemPriority } from "@/server/actions/checklist";
 import { formatDate, daysUntil } from "@/lib/dates";
 import { Badge } from "@/components/ui/Badge";
+import { Checkbox } from "@/components/ui/Checkbox";
 import clsx from "clsx";
 
 type Priority = ChecklistItem["priority"];
 
-// Same "urgency" logic as a traffic light — HIGH borrows the overdue
-// color on purpose, so a HIGH-priority task and an overdue task read as
-// equally urgent at a glance instead of competing for attention.
-const PRIORITY_TONE: Record<Priority, "terracotta" | "gold" | "neutral"> = {
+// A real traffic light now: HIGH borrows the overdue color on purpose,
+// so a HIGH-priority task and an overdue task read as equally urgent at
+// a glance instead of competing for attention. LOW uses green — calm/
+// on-track, distinct from the grey "Custom" badge nearby so the two
+// don't blur together. Exported so dashboard/page.tsx's "This week's
+// focus" list (which now shows every priority, not just HIGH) renders
+// the same colors instead of a second, driftable copy of this map.
+export const PRIORITY_TONE: Record<Priority, "terracotta" | "gold" | "green"> = {
   HIGH: "terracotta",
   MEDIUM: "gold",
-  LOW: "neutral",
+  LOW: "green",
 };
 
 export function ChecklistItemRow({ item }: { item: ChecklistItem }) {
@@ -60,13 +65,8 @@ export function ChecklistItemRow({ item }: { item: ChecklistItem }) {
   return (
     <li className={clsx("flex items-center justify-between gap-3 py-2.5", isPending && "opacity-60")}>
       <label className="flex flex-1 cursor-pointer items-center gap-3">
-        <input
-          type="checkbox"
-          checked={done}
-          onChange={handleToggle}
-          className="h-4 w-4 rounded border-akoma-ink/30 text-akoma-green focus:ring-akoma-green"
-        />
-        <span className={clsx("text-sm", done ? "text-akoma-ink/40 line-through" : "text-akoma-ink")}>
+        <Checkbox checked={done} onChange={handleToggle} ariaLabel={`Mark ${item.title} as done`} />
+        <span className={clsx("text-sm transition-colors duration-200", done ? "text-akoma-ink/40 line-through" : "text-akoma-ink")}>
           {item.title}
         </span>
         {!item.isDefault && <Badge tone="neutral">Custom</Badge>}

@@ -7,9 +7,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { Guest } from "@prisma/client";
+import type { Guest, GuestGroup } from "@prisma/client";
 import { updateGuestRsvp, deleteGuest } from "@/server/actions/guests";
+import { updateGuestGroup } from "@/server/actions/seating";
 import { Badge } from "@/components/ui/Badge";
+import { GUEST_GROUP_LABEL, GUEST_GROUP_OPTIONS } from "@/lib/guest-group";
 import clsx from "clsx";
 
 const SIDE_LABEL: Record<Guest["side"], string> = { BRIDE: "Bride", GROOM: "Groom", BOTH: "Both" };
@@ -21,6 +23,7 @@ const RSVP_TONE: Record<Guest["rsvpStatus"], "green" | "terracotta" | "neutral">
 
 export function GuestRow({ guest }: { guest: Guest }) {
   const [rsvpStatus, setRsvpStatus] = useState(guest.rsvpStatus);
+  const [guestGroup, setGuestGroup] = useState<GuestGroup | null>(guest.guestGroup);
   const [isPending, startTransition] = useTransition();
 
   function handleRsvpChange(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -30,6 +33,16 @@ export function GuestRow({ guest }: { guest: Guest }) {
     startTransition(async () => {
       const result = await updateGuestRsvp(guest.id, next);
       if (!result.ok) setRsvpStatus(prev);
+    });
+  }
+
+  function handleGroupChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const next = (e.target.value || null) as GuestGroup | null;
+    const prev = guestGroup;
+    setGuestGroup(next);
+    startTransition(async () => {
+      const result = await updateGuestGroup(guest.id, next);
+      if (!result.ok) setGuestGroup(prev);
     });
   }
 
@@ -64,6 +77,21 @@ export function GuestRow({ guest }: { guest: Guest }) {
         <Badge tone={RSVP_TONE[rsvpStatus]} className="ml-2">
           {rsvpStatus === "YES" ? "Confirmed" : rsvpStatus === "NO" ? "Declined" : "Pending"}
         </Badge>
+      </td>
+      <td className="py-2.5 pr-4">
+        <select
+          value={guestGroup ?? ""}
+          onChange={handleGroupChange}
+          aria-label={`Group for ${guest.name}`}
+          className="rounded-md border border-akoma-ink/15 px-2 py-1 text-sm focus:border-akoma-green focus:outline-none focus:ring-1 focus:ring-akoma-green"
+        >
+          <option value="">No group</option>
+          {GUEST_GROUP_OPTIONS.map((g) => (
+            <option key={g} value={g}>
+              {GUEST_GROUP_LABEL[g]}
+            </option>
+          ))}
+        </select>
       </td>
       <td className="py-2.5 text-right">
         <button

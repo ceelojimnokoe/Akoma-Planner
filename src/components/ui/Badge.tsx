@@ -9,7 +9,7 @@
 
 import clsx from "clsx";
 
-type Tone = "gold" | "green" | "terracotta" | "neutral" | "info";
+export type Tone = "gold" | "green" | "terracotta" | "neutral" | "info";
 
 const TONE_CLASSES: Record<Tone, string> = {
   gold: "bg-akoma-gold/15 text-akoma-gold border-akoma-gold/30",

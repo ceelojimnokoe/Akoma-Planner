@@ -41,8 +41,9 @@ export function ShareLinkPanel({ weddingPlanId, shareUrl }: { weddingPlanId: str
         {isPending ? "Regenerating…" : "Regenerate link"}
       </Button>
       <p className="text-xs text-akoma-ink/40">
-        Anyone with this link can view a read-only summary of your wedding — no budget, guest list, or vendor details
-        are shown.
+        Anyone with this link can view a read-only planning summary — venue, timeline, budget category allocations,
+        vendor booking status, checklist progress and RSVP totals. It never shows your overall financial position,
+        individual guest names or contacts, or account details.
       </p>
     </div>
   );

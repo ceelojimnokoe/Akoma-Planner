@@ -7,7 +7,6 @@
 // the suggestions (same pattern as every other card here, which all
 // receive pre-fetched data as props rather than fetching themselves).
 
-import Link from "next/link";
 import type { ProactiveSuggestion } from "@/lib/bisaai-qa";
 import { Card } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/Button";
@@ -25,9 +24,9 @@ export function BisaAISuggestionsCard({ suggestions }: { suggestions: ProactiveS
     <Card>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="font-semibold text-akoma-ink">BisaAI suggestions</h2>
-        <Link href="/bisaai" className="text-sm text-akoma-green hover:underline">
+        <LinkButton href="/bisaai" variant="ghost" size="sm">
           Ask BisaAI →
-        </Link>
+        </LinkButton>
       </div>
       <ul className="space-y-3">
         {suggestions.map((s) => (

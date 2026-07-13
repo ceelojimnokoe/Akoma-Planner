@@ -17,45 +17,46 @@
 import { randomUUID } from "crypto";
 import { PrismaClient, City, VendorCategory, Side, RsvpStatus, VendorInterestStatus } from "@prisma/client";
 import { buildDefaultChecklist } from "../src/lib/checklist-defaults";
-import { DEMO_USER_EMAIL, DEMO_USER_PASSWORD } from "../src/lib/session";
+import { DEMO_USER_EMAIL, DEMO_USER_PASSWORD, TEST_PASS_USER_EMAIL, TEST_PASS_USER_PASSWORD } from "../src/lib/session";
+import { WEDDING_PASS_AMOUNT_GHS } from "../src/lib/pricing";
 import { createSupabaseAdminClient } from "../src/lib/supabase/admin";
 
 const prisma = new PrismaClient();
 
 /**
- * Gives the seeded demo account a real Supabase Auth identity via the
- * Admin API, so DEMO_USER_EMAIL/DEMO_USER_PASSWORD are genuine, working
- * login credentials post-seed — not just local rows. Falls back to a
- * random, unclaimable placeholder id (same pattern as
- * server/actions/collaboration.ts's placeholder collaborators) when
- * SUPABASE_SERVICE_ROLE_KEY isn't configured, so the rest of the seed
- * (including this sample wedding's budget/checklist/guest data) still
- * runs — the demo *login* just won't work until real credentials are
- * set and the database is reseeded.
+ * Gives a seeded account a real Supabase Auth identity via the Admin API,
+ * so its email/password are genuine, working login credentials post-seed
+ * — not just local rows. Falls back to a random, unclaimable placeholder
+ * id (same pattern as server/actions/collaboration.ts's placeholder
+ * collaborators) when SUPABASE_SERVICE_ROLE_KEY isn't configured, so the
+ * rest of the seed still runs — that account's *login* just won't work
+ * until real credentials are set and the database is reseeded. Reused
+ * for both the demo account and the dev-only Wedding Pass test account
+ * below — same Supabase dance either way.
  */
-async function getOrCreateDemoSupabaseId(): Promise<string> {
+async function getOrCreateSupabaseId(email: string, password: string, name: string): Promise<string> {
   const admin = createSupabaseAdminClient();
   if (!admin) {
     console.warn(
-      "  SUPABASE_SERVICE_ROLE_KEY not set — skipping the demo account's real Supabase identity. " +
-        `It will exist in this local database but can't log in as ${DEMO_USER_EMAIL} until you set ` +
+      `  SUPABASE_SERVICE_ROLE_KEY not set — skipping ${email}'s real Supabase identity. ` +
+        `It will exist in this local database but can't log in until you set ` +
         "SUPABASE_SERVICE_ROLE_KEY in .env and re-run `npm run db:seed`."
     );
     return randomUUID();
   }
 
   const { data: existingUsers } = await admin.auth.admin.listUsers();
-  const existing = existingUsers.users.find((u) => u.email === DEMO_USER_EMAIL);
+  const existing = existingUsers.users.find((u) => u.email === email);
   if (existing) return existing.id;
 
   const { data, error } = await admin.auth.admin.createUser({
-    email: DEMO_USER_EMAIL,
-    password: DEMO_USER_PASSWORD,
+    email,
+    password,
     email_confirm: true,
-    user_metadata: { name: "Ama Owusu" },
+    user_metadata: { name },
   });
   if (error || !data.user) {
-    console.warn(`  Failed to create the demo Supabase user (${error?.message}) — using a placeholder identity instead.`);
+    console.warn(`  Failed to create the Supabase user for ${email} (${error?.message}) — using a placeholder identity instead.`);
     return randomUUID();
   }
   return data.user.id;
@@ -71,6 +72,14 @@ async function main() {
   await seedAccommodations(vendors);
   await seedSampleWedding(vendors);
 
+  // Dev/local only — never touches a production database. Lets anyone
+  // working on Pass-gated features (Collaboration, Design Tools, etc.)
+  // log in with an account that already has the Pass, without going
+  // through a real Paystack payment.
+  if (process.env.NODE_ENV !== "production") {
+    await seedTestPassWedding();
+  }
+
   console.log("Seed complete.");
 }
 
@@ -83,6 +92,7 @@ async function clearExistingData() {
   await prisma.budgetCategory.deleteMany();
   await prisma.vendorBookingStatus.deleteMany();
   await prisma.coupleProfile.deleteMany();
+  await prisma.payment.deleteMany();
   await prisma.weddingMember.deleteMany();
   await prisma.weddingPlan.deleteMany();
   await prisma.accommodation.deleteMany();
@@ -378,7 +388,7 @@ async function seedAccommodations(vendors: Awaited<ReturnType<typeof seedVendors
 // ---------------------------------------------------------------------------
 
 async function seedSampleWedding(vendors: Awaited<ReturnType<typeof seedVendors>>) {
-  const supabaseId = await getOrCreateDemoSupabaseId();
+  const supabaseId = await getOrCreateSupabaseId(DEMO_USER_EMAIL, DEMO_USER_PASSWORD, "Ama Owusu");
   const user = await prisma.user.create({
     data: {
       supabaseId,
@@ -477,6 +487,7 @@ async function seedBudgetCategories(weddingPlanId: string) {
     { name: "Photography & Media", allocatedGHS: 10000, spentGHS: 3000 },
     { name: "Traditional Rites", allocatedGHS: 12000, spentGHS: 12000 },
     { name: "Decor", allocatedGHS: 10000, spentGHS: 0 },
+    { name: "Accommodation", allocatedGHS: 7000, spentGHS: 1500 },
     { name: "Music & Entertainment", allocatedGHS: 8000, spentGHS: 2000 },
     { name: "Transport", allocatedGHS: 5000, spentGHS: 0 },
     { name: "Cake", allocatedGHS: 2000, spentGHS: 0 },
@@ -593,6 +604,91 @@ async function seedAiLogs(weddingPlanId: string) {
   await prisma.aIInteractionLog.createMany({
     data: logs.map((l) => ({ ...l, weddingPlanId, isMock: true })),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Dev-only Wedding Pass test account — separate from the demo account
+// above, so the Free-vs-Pass paywall stays demoable there while this one
+// gives anyone testing Pass features (Collaboration, Design Tools, the
+// guest cap, etc.) a frictionless way in, without a real Paystack charge.
+// Kept deliberately lean: a wedding plan, a Payment row explaining why
+// hasWeddingPass is true, a default checklist, and a small guest list —
+// enough for every Pass-gated tool to have real content to work with,
+// without duplicating the demo account's full data set.
+// ---------------------------------------------------------------------------
+
+async function seedTestPassWedding() {
+  const supabaseId = await getOrCreateSupabaseId(TEST_PASS_USER_EMAIL, TEST_PASS_USER_PASSWORD, "Pass Test Account");
+  const user = await prisma.user.create({
+    data: {
+      supabaseId,
+      email: TEST_PASS_USER_EMAIL,
+      name: "Pass Test Account",
+      authProvider: "email",
+      emailVerified: true,
+    },
+  });
+
+  const weddingDate = new Date();
+  weddingDate.setMonth(weddingDate.getMonth() + 6);
+
+  const weddingPlan = await prisma.weddingPlan.create({
+    data: {
+      coupleNames: "Pass Test Account",
+      weddingDate,
+      totalBudgetGHS: 100_000,
+      city: "KUMASI",
+      guestEstimate: 150,
+      tradition: "Ashanti",
+      hasWeddingPass: true,
+      ownerUserId: user.id,
+      members: {
+        create: { userId: user.id, role: "OWNER" },
+      },
+    },
+  });
+
+  // Represents what a real successful Paystack payment would leave
+  // behind (see confirmPaymentSuccess in server/actions/billing.ts) —
+  // labelled "dev-seed" rather than "paystack" so it's never mistaken
+  // for a real charge if anyone inspects the Payment table.
+  await prisma.payment.create({
+    data: {
+      weddingPlanId: weddingPlan.id,
+      provider: "dev-seed",
+      reference: `dev-seed-pass-${weddingPlan.id}`,
+      amountGHS: WEDDING_PASS_AMOUNT_GHS,
+      status: "SUCCESS",
+    },
+  });
+
+  const items = buildDefaultChecklist(weddingDate);
+  await prisma.checklistItem.createMany({
+    data: items.map((item) => ({
+      weddingPlanId: weddingPlan.id,
+      title: item.title,
+      category: item.category,
+      dueDate: item.dueDate,
+      isDefault: item.isDefault,
+      priority: item.priority,
+    })),
+  });
+
+  const guestData: Array<{ name: string; side: Side; rsvpStatus: RsvpStatus; plusOne?: boolean }> = [
+    { name: "Yaa Asantewaa", side: "BRIDE", rsvpStatus: "YES", plusOne: true },
+    { name: "Kojo Antwi", side: "GROOM", rsvpStatus: "YES" },
+    { name: "Akua Serwaa", side: "BRIDE", rsvpStatus: "PENDING" },
+    { name: "Kwabena Kyeremeh", side: "GROOM", rsvpStatus: "PENDING" },
+    { name: "Afia Owusu", side: "BRIDE", rsvpStatus: "YES" },
+    { name: "Nana Ampadu", side: "BOTH", rsvpStatus: "YES", plusOne: true },
+    { name: "Esi Bonsu", side: "BRIDE", rsvpStatus: "NO" },
+    { name: "Yaw Darko", side: "GROOM", rsvpStatus: "YES" },
+  ];
+  await prisma.guest.createMany({
+    data: guestData.map((g) => ({ ...g, weddingPlanId: weddingPlan.id })),
+  });
+
+  console.log(`  seeded dev-only Wedding Pass test account (${TEST_PASS_USER_EMAIL} / ${TEST_PASS_USER_PASSWORD})`);
 }
 
 main()

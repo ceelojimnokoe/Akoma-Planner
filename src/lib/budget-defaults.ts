@@ -12,12 +12,13 @@ export interface BudgetSplitEntry {
 }
 
 export const DEFAULT_BUDGET_SPLIT: BudgetSplitEntry[] = [
-  { name: "Venue", percentOfBudget: 25 },
-  { name: "Catering", percentOfBudget: 20 },
-  { name: "Attire", percentOfBudget: 15 },
-  { name: "Traditional Rites", percentOfBudget: 12 },
+  { name: "Venue", percentOfBudget: 23 },
+  { name: "Catering", percentOfBudget: 19 },
+  { name: "Attire", percentOfBudget: 14 },
+  { name: "Traditional Rites", percentOfBudget: 11 },
   { name: "Photography & Media", percentOfBudget: 10 },
-  { name: "Decor", percentOfBudget: 8 },
+  { name: "Decor", percentOfBudget: 7 },
+  { name: "Accommodation", percentOfBudget: 6 },
   { name: "Music & Entertainment", percentOfBudget: 5 },
   { name: "Transport", percentOfBudget: 3 },
   { name: "Cake", percentOfBudget: 2 },

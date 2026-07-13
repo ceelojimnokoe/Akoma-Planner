@@ -5,7 +5,7 @@
 // before trusting it in the calendar UI.
 
 import { describe, expect, it } from "vitest";
-import { getMonthGrid, isSameDay } from "@/lib/dates";
+import { getMonthGrid, getWeekDays, isSameDay } from "@/lib/dates";
 
 describe("getMonthGrid", () => {
   it("starts the grid on the Monday before the 1st of the month", () => {
@@ -38,6 +38,37 @@ describe("getMonthGrid", () => {
     const lastWeek = weeks[weeks.length - 1];
     const trailingIntoJanuary = lastWeek.filter((d) => d.getMonth() === 0);
     for (const d of trailingIntoJanuary) expect(d.getFullYear()).toBe(2027);
+  });
+});
+
+describe("getWeekDays", () => {
+  it("returns 7 days starting on Monday", () => {
+    const wednesday = new Date(2026, 6, 15); // July 15, 2026 is a Wednesday
+    const week = getWeekDays(wednesday);
+    expect(week).toHaveLength(7);
+    expect(week[0].getDay()).toBe(1); // Monday
+    expect(week[6].getDay()).toBe(0); // Sunday
+  });
+
+  it("includes the original date somewhere in the week", () => {
+    const wednesday = new Date(2026, 6, 15);
+    const week = getWeekDays(wednesday);
+    expect(week.some((d) => isSameDay(d, wednesday))).toBe(true);
+  });
+
+  it("handles a month rollover correctly", () => {
+    // July 31, 2026 is a Friday — its week spans into August.
+    const fridayEndOfMonth = new Date(2026, 6, 31);
+    const week = getWeekDays(fridayEndOfMonth);
+    expect(week[0]).toEqual(new Date(2026, 6, 27)); // Monday July 27
+    expect(week[6]).toEqual(new Date(2026, 7, 2)); // Sunday August 2
+  });
+
+  it("returns consecutive days with no gaps", () => {
+    const week = getWeekDays(new Date(2026, 6, 15));
+    for (let i = 1; i < week.length; i++) {
+      expect(week[i].getTime() - week[i - 1].getTime()).toBe(24 * 60 * 60 * 1000);
+    }
   });
 });
 

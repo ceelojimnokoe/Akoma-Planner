@@ -21,6 +21,14 @@ import { syncLocalUser } from "./supabase/sync-user";
 export const DEMO_USER_EMAIL = "ama.owusu@example.com";
 export const DEMO_USER_PASSWORD = "akomaplanner-demo";
 
+// A second seeded account, dedicated to testing Wedding Pass features
+// without going through a real Paystack payment — prisma/seed.ts grants
+// it hasWeddingPass: true plus a matching dev-only Payment row. Dev/local
+// only: prisma/seed.ts refuses to create it when NODE_ENV=production, so
+// this never reaches a production database.
+export const TEST_PASS_USER_EMAIL = "pass@test.com";
+export const TEST_PASS_USER_PASSWORD = "password123";
+
 /** Like getCurrentUser(), but never redirects — null for an anonymous
  *  visitor. For public pages (the landing page) that render either way
  *  but tailor a CTA to signed-in status. */

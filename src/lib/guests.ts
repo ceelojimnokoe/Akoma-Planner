@@ -17,6 +17,11 @@ export interface GuestStats {
   /** Guest rows, not attendees — this is what the Free-plan cap (lib/plan.ts) counts. */
   totalRecords: number;
   confirmedRecords: number;
+  /** Guest rows still awaiting a response — what the Dashboard's Pending
+   *  Guest Confirmations widget counts (a follow-up list is about who to
+   *  contact, i.e. records, not the attendee headcount those records
+   *  might eventually represent). */
+  pendingRecords: number;
   /** Real headcount: every guest is 1 attendee, or 2 if plusOne is checked. */
   totalAttendees: number;
   confirmedAttendees: number;
@@ -34,9 +39,31 @@ export function calculateGuestStats(guests: GuestForStats[]): GuestStats {
   return {
     totalRecords: guests.length,
     confirmedRecords: confirmed.length,
+    pendingRecords: pending.length,
     totalAttendees: guests.reduce((sum, g) => sum + seatsFor(g), 0),
     confirmedAttendees: confirmed.reduce((sum, g) => sum + seatsFor(g), 0),
     pendingAttendees: pending.reduce((sum, g) => sum + seatsFor(g), 0),
     declinedAttendees: declined.reduce((sum, g) => sum + seatsFor(g), 0),
   };
+}
+
+export interface PendingGuestFollowUp {
+  id: string;
+  name: string;
+  rsvpStatus: "PENDING" | "YES" | "NO";
+  createdAt: Date;
+}
+
+/** The Dashboard's Pending Guest Confirmations widget: which pending
+ *  guests to surface for follow-up, and in what order. Ghana weddings
+ *  don't currently track a per-guest RSVP deadline, so "longest pending"
+ *  (oldest createdAt among still-PENDING guests) is the best actionable
+ *  proxy available — whoever's been waiting longest surfaces first. If a
+ *  per-guest deadline field is ever added, prefer that over createdAt
+ *  here without changing this function's shape. */
+export function selectPendingGuestFollowUps<T extends PendingGuestFollowUp>(guests: T[], limit: number): T[] {
+  return guests
+    .filter((g) => g.rsvpStatus === "PENDING")
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+    .slice(0, limit);
 }

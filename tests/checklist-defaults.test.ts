@@ -9,9 +9,30 @@
 // them at one end.
 
 import { describe, expect, it } from "vitest";
-import { buildDefaultChecklist, DEFAULT_CHECKLIST_TEMPLATE } from "@/lib/checklist-defaults";
+import { buildDefaultChecklist, CATEGORY_TIPS, DEFAULT_CHECKLIST_TEMPLATE } from "@/lib/checklist-defaults";
+
+describe("DEFAULT_CHECKLIST_TEMPLATE", () => {
+  it("every item has a real, non-empty description", () => {
+    for (const item of DEFAULT_CHECKLIST_TEMPLATE) {
+      expect(item.description.trim().length).toBeGreaterThan(10);
+    }
+  });
+
+  it("every item's category has a matching planning tip", () => {
+    const categories = new Set(DEFAULT_CHECKLIST_TEMPLATE.map((item) => item.category));
+    for (const category of categories) {
+      expect(CATEGORY_TIPS[category]).toBeDefined();
+      expect(CATEGORY_TIPS[category].trim().length).toBeGreaterThan(10);
+    }
+  });
+});
 
 describe("buildDefaultChecklist", () => {
+  it("carries each item's description through to the built checklist", () => {
+    const items = buildDefaultChecklist(new Date(2027, 0, 1), new Date(2026, 6, 1));
+    expect(items.every((i) => i.description.trim().length > 0)).toBe(true);
+  });
+
   it("keeps every due date within [today, weddingDate] for a short engagement", () => {
     const today = new Date(2026, 6, 11);
     const weddingDate = new Date(2026, 10, 11); // 4 months out

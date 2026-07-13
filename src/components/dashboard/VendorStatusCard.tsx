@@ -5,13 +5,13 @@
 // ONBOARDING_VENDOR_CATEGORIES for labels so this card's category names
 // never drift from the onboarding step that produced the data.
 
-import Link from "next/link";
 import Image from "next/image";
 import type { VendorBookingStatus } from "@prisma/client";
 import { ONBOARDING_VENDOR_CATEGORIES } from "@/lib/validation/wedding";
 import { ONBOARDING_CATEGORY_IMAGES } from "@/lib/vendor-images";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { LinkButton } from "@/components/ui/Button";
 
 const STATUS_LABEL: Record<string, string> = {
   BOOKED: "Booked",
@@ -36,9 +36,9 @@ export function VendorStatusCard({ statuses }: { statuses: VendorBookingStatus[]
           <h2 className="font-semibold text-akoma-ink">Vendor status</h2>
           <p className="text-xs text-akoma-ink/50">{bookedCount} of {ONBOARDING_VENDOR_CATEGORIES.length} booked</p>
         </div>
-        <Link href="/vendors" className="text-sm text-akoma-green hover:underline">
+        <LinkButton href="/vendors" variant="ghost" size="sm">
           Browse vendors →
-        </Link>
+        </LinkButton>
       </div>
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {ONBOARDING_VENDOR_CATEGORIES.map((c) => {

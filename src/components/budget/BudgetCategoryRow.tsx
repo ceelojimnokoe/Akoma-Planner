@@ -7,9 +7,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import clsx from "clsx";
 import type { BudgetCategorySummary } from "@/lib/budget";
 import { updateBudgetCategory, deleteBudgetCategory } from "@/server/actions/budget";
 import { formatGHS } from "@/lib/currency";
+import { getRemainingTone } from "@/lib/budget-tone";
+import { VALUE_TONE_CLASSES } from "@/components/dashboard/StatCard";
 
 export function BudgetCategoryRow({ category }: { category: BudgetCategorySummary }) {
   const [allocated, setAllocated] = useState(String(category.allocatedGHS));
@@ -52,7 +55,12 @@ export function BudgetCategoryRow({ category }: { category: BudgetCategorySummar
         <MoneyInput value={spent} onChange={setSpent} onBlur={saveSpent} />
       </td>
       <td className="py-3 pr-4 text-sm">
-        <span className={category.isOverBudget ? "font-medium text-akoma-terracotta" : "text-akoma-ink/70"}>
+        <span
+          className={clsx(
+            VALUE_TONE_CLASSES[getRemainingTone(category.spentGHS, category.remainingInCategory)],
+            category.isOverBudget && "font-medium"
+          )}
+        >
           {formatGHS(category.remainingInCategory)}
         </span>
         {category.isOverBudget && <span className="ml-1 text-xs text-akoma-terracotta">over</span>}
