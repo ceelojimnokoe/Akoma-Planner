@@ -15,8 +15,18 @@
 // imports are the reliable choice here.
 
 import { randomUUID } from "crypto";
-import { PrismaClient, City, VendorCategory, Side, RsvpStatus, VendorInterestStatus } from "@prisma/client";
-import { buildDefaultChecklist } from "../src/lib/checklist-defaults";
+import {
+  PrismaClient,
+  City,
+  VendorCategory,
+  Side,
+  RsvpStatus,
+  VendorInterestStatus,
+  VendorBookingProgress,
+  OnboardingVendorCategory,
+} from "@prisma/client";
+import { buildDefaultChecklist, ONBOARDING_CATEGORY_CHECKLIST_TITLES } from "../src/lib/checklist-defaults";
+import { deriveCategoryBookingStatus } from "../src/lib/vendor-booking-progress";
 import { DEMO_USER_EMAIL, DEMO_USER_PASSWORD, TEST_PASS_USER_EMAIL, TEST_PASS_USER_PASSWORD } from "../src/lib/session";
 import { WEDDING_PASS_AMOUNT_GHS } from "../src/lib/pricing";
 import { createSupabaseAdminClient } from "../src/lib/supabase/admin";
@@ -158,12 +168,16 @@ async function seedVendors() {
     { name: "Flawless Faces Accra", category: "MAKEUP", city: "ACCRA", description: "Full glam team for bride and bridal party.", priceLowGHS: 1200, priceHighGHS: 4500, rating: 4.7, contactPhone: "+233 24 777 8900", isProFeatured: true },
     { name: "Beauty by Abena", category: "MAKEUP", city: "KUMASI", description: "Natural and glam bridal makeup specialist.", priceLowGHS: 700, priceHighGHS: 2500, rating: 4.5, contactPhone: "+233 24 777 8901", isProFeatured: false },
     { name: "Kumasi Glam Studio", category: "MAKEUP", city: "KUMASI", description: "Bridal party glam packages with on-site touch-ups.", priceLowGHS: 900, priceHighGHS: 3200, rating: 4.4, contactPhone: "+233 24 777 8902", isProFeatured: false },
+    { name: "Bridal Glow Studio", category: "MAKEUP", city: "ACCRA", description: "Hair styling and makeup team with a mobile on-location service.", priceLowGHS: 1000, priceHighGHS: 3800, rating: 4.6, contactPhone: "+233 24 777 8903", isProFeatured: false },
+    { name: "Akosua Hair & Makeup Co.", category: "MAKEUP", city: "KUMASI", description: "Bridal hair and makeup with traditional-style updo specialists.", priceLowGHS: 850, priceHighGHS: 3000, rating: 4.7, contactPhone: "+233 24 777 8904", isProFeatured: true },
 
     // Transport
     { name: "Prestige Wedding Cars Accra", category: "TRANSPORT", city: "ACCRA", description: "Decorated luxury car hire for the couple and bridal party.", priceLowGHS: 1500, priceHighGHS: 6000, rating: 4.5, contactPhone: "+233 24 888 9900", isProFeatured: false },
     { name: "VIP Fleet Rentals", category: "TRANSPORT", city: "ACCRA", description: "Guest shuttle buses plus a decorated lead car.", priceLowGHS: 2500, priceHighGHS: 9000, rating: 4.3, contactPhone: "+233 24 888 9901", isProFeatured: false },
     { name: "Kumasi Classic Car Hire", category: "TRANSPORT", city: "KUMASI", description: "Vintage and modern luxury car hire with driver.", priceLowGHS: 1200, priceHighGHS: 5000, rating: 4.4, contactPhone: "+233 24 888 9902", isProFeatured: false },
     { name: "Golden Wheels Rentals", category: "TRANSPORT", city: "KUMASI", description: "Guest shuttle service for out-of-town family.", priceLowGHS: 1800, priceHighGHS: 6500, rating: 4.2, contactPhone: "+233 24 888 9903", isProFeatured: false },
+    { name: "Royal Ride Wedding Cars", category: "TRANSPORT", city: "ACCRA", description: "Vintage Rolls-Royce and modern convertible hire for the couple's exit.", priceLowGHS: 2000, priceHighGHS: 8000, rating: 4.6, contactPhone: "+233 24 888 9904", isProFeatured: true },
+    { name: "Ashanti Convoy Services", category: "TRANSPORT", city: "KUMASI", description: "Full-convoy planning for the wedding party plus a decorated lead car.", priceLowGHS: 1600, priceHighGHS: 6000, rating: 4.3, contactPhone: "+233 24 888 9905", isProFeatured: false },
 
     // Cake
     { name: "Sweet Delights Cakes", category: "CAKE", city: "ACCRA", description: "Multi-tier custom wedding cakes, delivery included.", priceLowGHS: 1200, priceHighGHS: 5000, rating: 4.6, contactPhone: "+233 24 999 0011", isProFeatured: false },
@@ -171,9 +185,30 @@ async function seedVendors() {
     { name: "Kumasi Cake Boutique", category: "CAKE", city: "KUMASI", description: "Custom-flavoured tiered cakes, halal options available.", priceLowGHS: 1000, priceHighGHS: 4500, rating: 4.5, contactPhone: "+233 24 999 0013", isProFeatured: false },
     { name: "Ohemaa's Cake Corner", category: "CAKE", city: "KUMASI", description: "Traditional and modern cake designs, small-batch bakery.", priceLowGHS: 900, priceHighGHS: 4000, rating: 4.4, contactPhone: "+233 24 999 0014", isProFeatured: false },
 
+    // Jewellery
+    { name: "Adorn Fine Jewellers", category: "JEWELLERY", city: "ACCRA", description: "Custom engagement rings and wedding bands, hand-set diamonds.", priceLowGHS: 2500, priceHighGHS: 15000, rating: 4.7, contactPhone: "+233 24 121 1122", isProFeatured: true },
+    { name: "Golden Circle Jewellers", category: "JEWELLERY", city: "ACCRA", description: "Ready-to-wear and bespoke bridal jewellery sets.", priceLowGHS: 1500, priceHighGHS: 8000, rating: 4.5, contactPhone: "+233 24 121 1123", isProFeatured: false },
+    { name: "Timeless Gems Accra", category: "JEWELLERY", city: "ACCRA", description: "Engagement rings with in-house resizing and engraving.", priceLowGHS: 1800, priceHighGHS: 9000, rating: 4.4, contactPhone: "+233 24 121 1124", isProFeatured: false },
+    { name: "Kumasi Gold House", category: "JEWELLERY", city: "KUMASI", description: "Traditional gold jewellery for the bride and family, custom orders.", priceLowGHS: 2000, priceHighGHS: 12000, rating: 4.8, contactPhone: "+233 24 121 1125", isProFeatured: true },
+    { name: "Ashanti Goldsmiths", category: "JEWELLERY", city: "KUMASI", description: "Handcrafted gold rings and beads from generations of goldsmithing.", priceLowGHS: 2200, priceHighGHS: 10000, rating: 4.6, contactPhone: "+233 24 121 1126", isProFeatured: false },
+
+    // MC (Master of Ceremonies)
+    { name: "MC Prince Events", category: "MC", city: "ACCRA", description: "Bilingual (English/Twi) MC known for keeping receptions lively.", priceLowGHS: 1500, priceHighGHS: 4000, rating: 4.6, contactPhone: "+233 24 232 2233", isProFeatured: false },
+    { name: "Auntie Vee The Emcee", category: "MC", city: "ACCRA", description: "Warm, family-friendly hosting for traditional and white weddings.", priceLowGHS: 1200, priceHighGHS: 3500, rating: 4.5, contactPhone: "+233 24 232 2234", isProFeatured: false },
+    { name: "MC Ohemaa Events", category: "MC", city: "ACCRA", description: "Elegant, script-driven hosting for formal receptions.", priceLowGHS: 1600, priceHighGHS: 4200, rating: 4.6, contactPhone: "+233 24 232 2235", isProFeatured: true },
+    { name: "MC Konfem", category: "MC", city: "KUMASI", description: "High-energy MC with crowd games and grand-entrance hype.", priceLowGHS: 1000, priceHighGHS: 3000, rating: 4.7, contactPhone: "+233 24 232 2236", isProFeatured: true },
+    { name: "Nana Yaw The Host", category: "MC", city: "KUMASI", description: "Experienced traditional-ceremony MC, fluent in Twi customs and protocol.", priceLowGHS: 1300, priceHighGHS: 3800, rating: 4.4, contactPhone: "+233 24 232 2237", isProFeatured: false },
+
+    // Wedding Planner / Coordinator
+    { name: "Grace Events Coordination", category: "PLANNER", city: "ACCRA", description: "Full-service day-of wedding coordination team.", priceLowGHS: 3000, priceHighGHS: 10000, rating: 4.6, contactPhone: "+233 24 343 3344", isProFeatured: true },
+    { name: "Akoma Bespoke Weddings", category: "PLANNER", city: "ACCRA", description: "Full-service planning from budget breakdown to day-of coordination.", priceLowGHS: 8000, priceHighGHS: 25000, rating: 4.8, contactPhone: "+233 24 343 3345", isProFeatured: true },
+    { name: "Kumasi Wedding Concierge", category: "PLANNER", city: "KUMASI", description: "Vendor liaison and day-of coordination service.", priceLowGHS: 2500, priceHighGHS: 8000, rating: 4.5, contactPhone: "+233 24 343 3346", isProFeatured: false },
+    { name: "Ashanti Elite Wedding Planners", category: "PLANNER", city: "KUMASI", description: "Full planning and traditional-rites coordination for both ceremonies.", priceLowGHS: 6000, priceHighGHS: 20000, rating: 4.7, contactPhone: "+233 24 343 3347", isProFeatured: false },
+
     // Other
-    { name: "Grace Events Coordination", category: "OTHER", city: "ACCRA", description: "Full-service day-of wedding coordination team.", priceLowGHS: 3000, priceHighGHS: 10000, rating: 4.6, contactPhone: "+233 24 000 1122", isProFeatured: true },
-    { name: "Kumasi Wedding Concierge", category: "OTHER", city: "KUMASI", description: "Vendor liaison and day-of coordination service.", priceLowGHS: 2500, priceHighGHS: 8000, rating: 4.5, contactPhone: "+233 24 000 1123", isProFeatured: false },
+    { name: "Rev. Kofi Amankwah Officiant Services", category: "OTHER", city: "ACCRA", description: "Licensed officiant for church and civil ceremonies.", priceLowGHS: 500, priceHighGHS: 2000, rating: 4.7, contactPhone: "+233 24 000 1124", isProFeatured: false },
+    { name: "Kente & Co. Stationery", category: "OTHER", city: "KUMASI", description: "Custom wedding invitations and stationery design and printing.", priceLowGHS: 800, priceHighGHS: 3500, rating: 4.5, contactPhone: "+233 24 000 1125", isProFeatured: false },
+    { name: "Flashback Photo Booths", category: "OTHER", city: "ACCRA", description: "Reception photo-booth rental with props and instant prints.", priceLowGHS: 900, priceHighGHS: 2800, rating: 4.4, contactPhone: "+233 24 000 1126", isProFeatured: false },
   ];
 
   const created = await Promise.all(
@@ -456,12 +491,14 @@ async function seedSampleWedding(vendors: Awaited<ReturnType<typeof seedVendors>
             { category: "PHOTOGRAPHER", status: "RESEARCHING" },
             { category: "VIDEOGRAPHER", status: "NOT_STARTED" },
             { category: "CATERER", status: "RESEARCHING" },
-            { category: "DJ_BAND", status: "RESEARCHING" },
+            { category: "DECOR", status: "RESEARCHING" },
+            { category: "PLANNER", status: "RESEARCHING" },
+            { category: "DJ_BAND", status: "NOT_STARTED" },
             { category: "MC", status: "NOT_STARTED" },
-            { category: "DECOR", status: "NOT_STARTED" },
-            { category: "FLORIST", status: "NOT_STARTED" },
+            { category: "BRIDAL_WEAR", status: "RESEARCHING" },
+            { category: "GROOMS_WEAR", status: "NOT_STARTED" },
             { category: "MAKEUP", status: "BOOKED" },
-            { category: "HAIR", status: "NOT_STARTED" },
+            { category: "JEWELLERY", status: "RESEARCHING" },
             { category: "CAKE", status: "NOT_STARTED" },
             { category: "TRANSPORTATION", status: "NOT_STARTED" },
           ],
@@ -473,24 +510,34 @@ async function seedSampleWedding(vendors: Awaited<ReturnType<typeof seedVendors>
   await seedBudgetCategories(weddingPlan.id);
   await seedChecklist(weddingPlan.id, weddingDate);
   await seedGuests(weddingPlan.id);
-  await seedVendorInterests(weddingPlan.id, vendors);
+  const touchedCategories = await seedVendorInterests(weddingPlan.id, vendors);
+  await syncSeededVendorBooking(weddingPlan.id, touchedCategories);
   await seedAiLogs(weddingPlan.id);
 
   console.log(`  seeded wedding plan "${weddingPlan.coupleNames}" (${weddingPlan.id})`);
 }
 
 async function seedBudgetCategories(weddingPlanId: string) {
+  // Names match ONBOARDING_VENDOR_CATEGORIES' labels exactly (plus
+  // Accommodation) — same set every new wedding plan gets by default via
+  // buildDefaultBudgetCategories(), just populated here with realistic
+  // demo amounts instead of the real zero-filled starting state.
   const categories = [
     { name: "Venue", allocatedGHS: 30000, spentGHS: 15000 },
     { name: "Catering", allocatedGHS: 25000, spentGHS: 5000 },
-    { name: "Attire", allocatedGHS: 15000, spentGHS: 8000 },
-    { name: "Photography & Media", allocatedGHS: 10000, spentGHS: 3000 },
-    { name: "Traditional Rites", allocatedGHS: 12000, spentGHS: 12000 },
-    { name: "Decor", allocatedGHS: 10000, spentGHS: 0 },
-    { name: "Accommodation", allocatedGHS: 7000, spentGHS: 1500 },
-    { name: "Music & Entertainment", allocatedGHS: 8000, spentGHS: 2000 },
-    { name: "Transport", allocatedGHS: 5000, spentGHS: 0 },
+    { name: "Photography", allocatedGHS: 8000, spentGHS: 3000 },
+    { name: "Videography", allocatedGHS: 4000, spentGHS: 0 },
+    { name: "Decoration", allocatedGHS: 10000, spentGHS: 0 },
+    { name: "Wedding Planner / Coordinator", allocatedGHS: 6000, spentGHS: 0 },
+    { name: "Entertainment / DJ", allocatedGHS: 5000, spentGHS: 0 },
+    { name: "Master of Ceremonies (MC)", allocatedGHS: 3000, spentGHS: 0 },
+    { name: "Bridal Wear", allocatedGHS: 9000, spentGHS: 5000 },
+    { name: "Groom's Wear", allocatedGHS: 5000, spentGHS: 3000 },
+    { name: "Hair & Makeup", allocatedGHS: 4500, spentGHS: 3200 },
+    { name: "Jewellery", allocatedGHS: 4000, spentGHS: 0 },
     { name: "Cake", allocatedGHS: 2000, spentGHS: 0 },
+    { name: "Transportation", allocatedGHS: 5000, spentGHS: 0 },
+    { name: "Accommodation", allocatedGHS: 7000, spentGHS: 1500 },
   ];
 
   await prisma.budgetCategory.createMany({
@@ -555,7 +602,9 @@ async function seedVendorInterests(weddingPlanId: string, vendors: Awaited<Retur
 
   const interests: Array<{
     vendorId: string;
-    status: VendorInterestStatus;
+    status?: VendorInterestStatus;
+    bookingProgress: VendorBookingProgress;
+    onboardingCategory: OnboardingVendorCategory | null;
     draftMessage?: string;
     quoteAmountGHS?: number;
     notes?: string;
@@ -563,33 +612,124 @@ async function seedVendorInterests(weddingPlanId: string, vendors: Awaited<Retur
     {
       vendorId: byName("Silver Star Gardens").id,
       status: "ACCEPTED",
+      bookingProgress: "BOOKED",
+      onboardingCategory: "VENUE",
       draftMessage: "Hi, we'd love to book Silver Star Gardens for our reception on the wedding date — could you confirm availability and send a quote for 250 guests?",
       quoteAmountGHS: 28000,
       notes: "Booked — deposit paid outside the app for now (payments are stubbed in this MVP).",
     },
+    // Backs the MAKEUP category's VendorBookingStatus (seeded BOOKED
+    // above) with a real interest — previously there was no VendorInterest
+    // row for any Makeup vendor at all, a pre-existing inconsistency this
+    // now resolves for the first time.
+    {
+      vendorId: byName("Flawless Faces Accra").id,
+      status: "ACCEPTED",
+      bookingProgress: "BOOKED",
+      onboardingCategory: "MAKEUP",
+      draftMessage: "Hi, we'd love to book your team for bridal party glam on the morning of the wedding — could you confirm availability?",
+      quoteAmountGHS: 3200,
+      notes: "Booked directly after a trial session.",
+    },
     {
       vendorId: byName("Bisa's Kitchen Catering").id,
       status: "QUOTED",
+      bookingProgress: "NEGOTIATING",
+      onboardingCategory: "CATERER",
       draftMessage: "Hello, could you share a catering quote for 250 guests, mixed Ghanaian and continental menu?",
       quoteAmountGHS: 22500,
-      notes: "Quote received — waiting on the couple to review before approving.",
+      notes: "Quote received — negotiating a package rate before approving.",
     },
     {
       vendorId: byName("Lensmen Studios").id,
       status: "SENT",
+      bookingProgress: "ENQUIRY_SENT",
+      onboardingCategory: "PHOTOGRAPHER",
       draftMessage: "Hi Lensmen Studios, we're planning our wedding and would like a full-day photography + drone package quote.",
       notes: "Message sent, awaiting vendor reply.",
     },
+    // ATTIRE now guesses BRIDAL_WEAR (see guessOnboardingCategory) — this
+    // used to be the demo example of "not tracked as a booking category"
+    // back when ATTIRE had no onboarding equivalent at all.
     {
       vendorId: byName("Ashanti Kente Weavers").id,
       status: "DRAFT",
+      bookingProgress: "SHORTLISTED",
+      onboardingCategory: "BRIDAL_WEAR",
       draftMessage: "Hello, we'd like a custom kente order for both families — could you let us know pricing and lead time?",
       notes: "Drafted by BisaAI, not yet sent — couple still reviewing wording.",
+    },
+    // Two shortlisted-but-no-enquiry-sent Decor vendors — exercises the
+    // "Vendor Status" ungated section on a bare, status-only interest row
+    // (no draftMessage), plus BisaAI's "shortlisted but stalled" nudge.
+    {
+      vendorId: byName("Elegant Touch Decor").id,
+      bookingProgress: "SHORTLISTED",
+      onboardingCategory: "DECOR",
+      notes: "Saved from browsing — liked their portfolio.",
+    },
+    {
+      vendorId: byName("Akwaaba Events Decor").id,
+      bookingProgress: "SHORTLISTED",
+      onboardingCategory: "DECOR",
+      notes: "Saved from browsing — traditional-ceremony backdrop style.",
+    },
+    // Exercises the new PLANNER/JEWELLERY categories — MC is deliberately
+    // left with zero interests, so the demo still shows a genuinely
+    // untouched category for the Health Score tooltip / BisaAI's
+    // not-contacted nudges.
+    {
+      vendorId: byName("Akoma Bespoke Weddings").id,
+      bookingProgress: "SHORTLISTED",
+      onboardingCategory: "PLANNER",
+      notes: "Saved from browsing — full-service package looks promising.",
+    },
+    {
+      vendorId: byName("Kumasi Gold House").id,
+      bookingProgress: "SHORTLISTED",
+      onboardingCategory: "JEWELLERY",
+      notes: "Saved from browsing — liked their custom gold sets.",
     },
   ];
 
   for (const interest of interests) {
     await prisma.vendorInterest.create({ data: { ...interest, weddingPlanId } });
+  }
+
+  return [...new Set(interests.map((i) => i.onboardingCategory).filter((c): c is OnboardingVendorCategory => c != null))];
+}
+
+/** Mirrors server/actions/vendor-booking.ts's two sync helpers using
+ *  plain Prisma calls — deliberately not importing that "use server"
+ *  file here (seed.ts stays a fully standalone script per its own
+ *  header comment, and those helpers' real home already calls
+ *  revalidatePath(), which has no meaning outside a Next.js request).
+ *  Without this, the seeded VendorBookingStatus rows and default
+ *  checklist items would start in a stale, disconnected snapshot
+ *  instead of the consistent state a real booking action leaves them in
+ *  — exactly the kind of mismatch this whole feature exists to fix. */
+async function syncSeededVendorBooking(weddingPlanId: string, categories: OnboardingVendorCategory[]) {
+  for (const category of categories) {
+    const interests = await prisma.vendorInterest.findMany({
+      where: { weddingPlanId, onboardingCategory: category },
+      select: { bookingProgress: true },
+    });
+
+    const status = deriveCategoryBookingStatus(interests.map((i) => i.bookingProgress));
+    await prisma.vendorBookingStatus.upsert({
+      where: { weddingPlanId_category: { weddingPlanId, category } },
+      create: { weddingPlanId, category, status },
+      update: { status },
+    });
+
+    const titles = ONBOARDING_CATEGORY_CHECKLIST_TITLES[category];
+    const hasBooked = interests.some((i) => i.bookingProgress === "BOOKED");
+    if (titles && titles.length > 0 && hasBooked) {
+      await prisma.checklistItem.updateMany({
+        where: { weddingPlanId, isDefault: true, title: { in: titles }, done: false },
+        data: { done: true },
+      });
+    }
   }
 }
 

@@ -22,6 +22,8 @@
 // ChecklistItem model) — this file only ever supplies one for the
 // default template.
 
+import type { OnboardingVendorCategory } from "@prisma/client";
+
 export type ChecklistPriority = "LOW" | "MEDIUM" | "HIGH";
 
 export interface ChecklistTemplateItem {
@@ -256,6 +258,35 @@ export const DEFAULT_CHECKLIST_TEMPLATE: ChecklistTemplateItem[] = [
     priority: "LOW",
   },
 ];
+
+// The exact default-template titles, as a union — so the vendor-booking
+// mapping below is a compile error, not a silent dead link, if either
+// this list or DEFAULT_CHECKLIST_TEMPLATE's own titles are ever renamed
+// without updating the other.
+export type DefaultChecklistTitle = (typeof DEFAULT_CHECKLIST_TEMPLATE)[number]["title"];
+
+/**
+ * Which default checklist item(s) a booked vendor in a given onboarding
+ * category should auto-complete (server/actions/vendor-booking.ts).
+ * DECOR/PLANNER/JEWELLERY/CAKE/TRANSPORTATION have no matching default
+ * item and are deliberately absent — same "no match, no crash"
+ * convention as lib/budget-fit.ts's unmapped VendorCategory values.
+ * PHOTOGRAPHER/VIDEOGRAPHER share one item (booking either is enough
+ * progress to complete "Book photographer and videographer"); DJ_BAND/MC
+ * are the same situation; BRIDAL_WEAR/GROOMS_WEAR both count toward the
+ * shared "Final dress/suit fitting" item alongside their own.
+ */
+export const ONBOARDING_CATEGORY_CHECKLIST_TITLES: Partial<Record<OnboardingVendorCategory, DefaultChecklistTitle[]>> = {
+  VENUE: ["Book the reception venue", "Book the traditional/engagement venue"],
+  PHOTOGRAPHER: ["Book photographer and videographer"],
+  VIDEOGRAPHER: ["Book photographer and videographer"],
+  CATERER: ["Book caterer and confirm menu"],
+  DJ_BAND: ["Book MC, DJ and/or live band"],
+  MC: ["Book MC, DJ and/or live band"],
+  BRIDAL_WEAR: ["First wedding dress fitting", "Final dress/suit fitting"],
+  GROOMS_WEAR: ["Shop for the groom's attire", "Final dress/suit fitting"],
+  MAKEUP: ["Book hair and makeup artist"],
+};
 
 /**
  * A short, general planning tip per category — separate from each

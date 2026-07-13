@@ -112,3 +112,50 @@ export function getWeddingHealthScore(input: WeddingHealthInput): WeddingHealthR
 
   return { score, status, statusLabel, timeline, budget, vendors, guests };
 }
+
+export interface HealthScoreSummary {
+  completed: string[];
+  improve: string[];
+}
+
+/** Turns the score's four sub-results into the tooltip's "why do I have
+ *  this score" explanation — positive reinforcement first, specific next
+ *  priorities second. Each pillar contributes to `completed` OR
+ *  `improve`, gated on its own sub-score, except vendors: the "N of M
+ *  booked" stat is always informational (shown regardless of how good
+ *  that ratio is), and separately contributes up to 2 `improve` bullets
+ *  naming specific still-unbooked categories when any exist —
+ *  `unbookedCategoryLabels` is expected pre-sorted by priority (critical
+ *  categories first) by the caller, which already has that context. */
+export function getHealthScoreSummary(
+  result: WeddingHealthResult,
+  details: { unbookedCategoryLabels: string[] }
+): HealthScoreSummary {
+  const completed: string[] = [];
+  const improve: string[] = [];
+
+  completed.push(result.vendors.label.replace(/^(\d+)\/(\d+) booked$/, "$1 of $2 vendors booked"));
+  const [firstUnbooked, secondUnbooked] = details.unbookedCategoryLabels;
+  if (firstUnbooked) improve.push(`Secure a ${firstUnbooked} vendor`);
+  if (secondUnbooked) improve.push(`Finalise ${secondUnbooked}`);
+
+  if (result.budget.score >= 75) {
+    completed.push("Budget is healthy");
+  } else {
+    improve.push(`Review your budget — ${result.budget.label}`);
+  }
+
+  if (result.timeline.label === "Behind schedule") {
+    improve.push("Catch up — your planning timeline is behind schedule");
+  } else {
+    completed.push(`Timeline is ${result.timeline.label.toLowerCase()}`);
+  }
+
+  if (result.guests.score >= 70) {
+    completed.push("Most RSVP responses received");
+  } else {
+    improve.push("Follow up with pending RSVPs");
+  }
+
+  return { completed, improve: improve.slice(0, 4) };
+}

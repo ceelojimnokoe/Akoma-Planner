@@ -33,6 +33,7 @@ import { getChecklistTone } from "@/lib/checklist-tone";
 import { sortByFocusPriority } from "@/lib/checklist-sort";
 import { getWeddingHealthScore } from "@/lib/wedding-health";
 import { ONBOARDING_VENDOR_CATEGORIES } from "@/lib/validation/wedding";
+import { CRITICAL_VENDOR_CATEGORIES } from "@/lib/bisaai-qa";
 import { PRIORITY_TONE } from "@/components/checklist/ChecklistItemRow";
 import { BudgetAlertWatcher } from "@/components/budget/BudgetAlertWatcher";
 
@@ -50,6 +51,7 @@ export default async function DashboardPage() {
     recommendedAccommodation,
     coupleProfile,
     vendorBookingStatuses,
+    vendorInterests,
     suggestionsResult,
   ] = await Promise.all([
     prisma.budgetCategory.findMany({
@@ -78,6 +80,10 @@ export default async function DashboardPage() {
     prisma.vendorBookingStatus.findMany({
       where: { weddingPlanId: weddingPlan!.id },
     }),
+    prisma.vendorInterest.findMany({
+      where: { weddingPlanId: weddingPlan!.id },
+      include: { vendor: { select: { name: true } } },
+    }),
     // Its own internal fetch duplicates a few of the queries above (see
     // lib/bisaai-context.ts's header comment on why that's deliberate) —
     // still one Promise.all slot, run in parallel with everything else.
@@ -103,6 +109,17 @@ export default async function DashboardPage() {
   const days = daysUntil(weddingPlan!.weddingDate);
 
   const vendorsBookedCount = vendorBookingStatuses.filter((s) => s.status === "BOOKED").length;
+
+  // Priority-ordered (critical categories first) list of unbooked
+  // category labels, for the Wedding Health Score tooltip's "Still to
+  // improve" bullets — see lib/wedding-health.ts's getHealthScoreSummary.
+  const bookedCategories = new Set<string>(vendorBookingStatuses.filter((s) => s.status === "BOOKED").map((s) => s.category));
+  const criticalCategorySet = new Set<string>(CRITICAL_VENDOR_CATEGORIES);
+  const unbookedCategoryLabels = [
+    ...ONBOARDING_VENDOR_CATEGORIES.filter((c) => criticalCategorySet.has(c.value) && !bookedCategories.has(c.value)),
+    ...ONBOARDING_VENDOR_CATEGORIES.filter((c) => !criticalCategorySet.has(c.value) && !bookedCategories.has(c.value)),
+  ].map((c) => c.label);
+
   const health = getWeddingHealthScore({
     checklistPercent,
     weddingPlanCreatedAt: weddingPlan!.createdAt,
@@ -175,7 +192,7 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <WeddingHealthCard health={health} />
+      <WeddingHealthCard health={health} unbookedCategoryLabels={unbookedCategoryLabels} />
 
       <BisaAISuggestionsCard suggestions={suggestions} />
 
@@ -245,30 +262,37 @@ export default async function DashboardPage() {
             </LinkButton>
           </div>
           <ul className="space-y-3">
-            {budget.categories.slice(0, 6).map((c) => (
-              <li key={c.id}>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-akoma-ink/80">{c.name}</span>
-                  <span
-                    className={
-                      c.isOverBudget
-                        ? "text-akoma-terracotta"
-                        : "text-akoma-ink/60"
-                    }
-                  >
-                    {formatGHS(c.spentGHS)} / {formatGHS(c.allocatedGHS)}
-                  </span>
-                </div>
-                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-akoma-ink/10">
-                  <div
-                    className={`h-full ${c.isOverBudget ? "bg-akoma-terracotta" : "bg-akoma-green"}`}
-                    style={{
-                      width: `${Math.min(100, (c.spentGHS / Math.max(c.allocatedGHS, 1)) * 100)}%`,
-                    }}
-                  />
-                </div>
-              </li>
-            ))}
+            {budget.categories.slice(0, 6).map((c) => {
+              const isUnset = c.allocatedGHS === 0 && c.spentGHS === 0;
+              return (
+                <li key={c.id}>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-akoma-ink/80">{c.name}</span>
+                    {isUnset ? (
+                      <span className="text-akoma-ink/40">—</span>
+                    ) : (
+                      <span
+                        className={
+                          c.isOverBudget
+                            ? "text-akoma-terracotta"
+                            : "text-akoma-ink/60"
+                        }
+                      >
+                        {formatGHS(c.spentGHS)} / {formatGHS(c.allocatedGHS)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-akoma-ink/10">
+                    <div
+                      className={`h-full ${c.isOverBudget ? "bg-akoma-terracotta" : "bg-akoma-green"}`}
+                      style={{
+                        width: isUnset ? "0%" : `${Math.min(100, (c.spentGHS / Math.max(c.allocatedGHS, 1)) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </Card>
       </div>
@@ -278,14 +302,23 @@ export default async function DashboardPage() {
           Style share the remaining 1/3, stacked. */}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <VendorStatusCard statuses={vendorBookingStatuses} />
+          <VendorStatusCard
+            interests={vendorInterests.map((i) => ({
+              vendorId: i.vendorId,
+              vendorName: i.vendor.name,
+              onboardingCategory: i.onboardingCategory,
+              bookingProgress: i.bookingProgress,
+              updatedAt: i.updatedAt,
+            }))}
+          />
         </div>
         {/* Same sm:pr-20 reasoning as "Budget by category" above — this
             column's cards sit at the row's right edge, in the bubble's path. */}
         <div className="flex flex-col gap-6 sm:pr-20">
           <GuestProgressCard
             confirmedAttendees={guestStats.confirmedAttendees}
-            guestEstimate={weddingPlan!.guestEstimate}
+            pendingAttendees={guestStats.pendingAttendees}
+            declinedAttendees={guestStats.declinedAttendees}
           />
           {hasStyleInfo && (
             <WeddingStyleCard

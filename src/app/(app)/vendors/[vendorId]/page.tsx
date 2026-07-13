@@ -17,10 +17,13 @@ import { getCurrentWeddingPlan } from "@/lib/session";
 import { requirePass, canAccessPassFeatures } from "@/lib/plan";
 import { formatGHS } from "@/lib/currency";
 import { getVendorImage } from "@/lib/vendor-images";
+import { matchVendorBudgetCategory, getBudgetFit } from "@/lib/budget-fit";
+import { guessOnboardingCategory } from "@/lib/vendor-booking-progress";
 import { Card } from "@/components/ui/Card";
 import { Badge, FeaturedBadge } from "@/components/ui/Badge";
 import { UpgradePrompt } from "@/components/upgrade/UpgradePrompt";
 import { VendorInterestPanel } from "@/components/vendors/VendorInterestPanel";
+import { VendorBookingStatus } from "@/components/vendors/VendorBookingStatus";
 import { categoryLabel, cityLabel } from "@/components/vendors/VendorCard";
 
 export default async function VendorDetailPage({ params }: { params: Promise<{ vendorId: string }> }) {
@@ -32,9 +35,18 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ v
   const locked = vendor.isProFeatured && !canAccessPassFeatures(weddingPlan!);
   const messagingGate = requirePass(weddingPlan!, "Vendor messaging and quote tracking");
 
-  const interest = await prisma.vendorInterest.findUnique({
-    where: { weddingPlanId_vendorId: { weddingPlanId: weddingPlan!.id, vendorId } },
-  });
+  const [interest, budgetCategories] = await Promise.all([
+    prisma.vendorInterest.findUnique({
+      where: { weddingPlanId_vendorId: { weddingPlanId: weddingPlan!.id, vendorId } },
+    }),
+    prisma.budgetCategory.findMany({ where: { weddingPlanId: weddingPlan!.id }, orderBy: { createdAt: "asc" } }),
+  ]);
+
+  // Skipped entirely for a locked (Free-viewer, featured) listing — it
+  // already hides price, and a fit badge would leak a cheaper/pricier
+  // signal through the lock. Same rule VendorCard.tsx/vendors/page.tsx follow.
+  const matchedBudgetCategory = locked ? null : matchVendorBudgetCategory(vendor.category, budgetCategories);
+  const budgetFit = matchedBudgetCategory ? getBudgetFit(vendor.priceLowGHS, matchedBudgetCategory) : null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -63,8 +75,29 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ v
               <Badge tone="gold">★ {vendor.rating.toFixed(1)}</Badge>
               {vendor.contactPhone && <span className="text-akoma-ink/60">{vendor.contactPhone}</span>}
             </div>
+            {budgetFit && (
+              <Badge tone={budgetFit.fits ? "green" : "terracotta"} className="mt-2">
+                {budgetFit.fits ? "✅" : "⚠️"} {budgetFit.label}
+              </Badge>
+            )}
           </>
         )}
+      </Card>
+
+      <Card>
+        <h2 className="mb-1 font-semibold text-akoma-ink">Vendor Status</h2>
+        <p className="mb-4 text-xs text-akoma-ink/50">Track your real progress with this vendor — however it&apos;s actually going.</p>
+        <VendorBookingStatus
+          weddingPlanId={weddingPlan!.id}
+          vendorId={vendor.id}
+          vendorName={vendor.name}
+          vendorCategory={vendor.category}
+          quoteAmountGHS={interest?.quoteAmountGHS ?? null}
+          priceLowGHS={vendor.priceLowGHS}
+          budgetCategories={budgetCategories}
+          initialBookingProgress={interest?.bookingProgress ?? "NOT_CONTACTED"}
+          initialOnboardingCategory={interest?.onboardingCategory ?? guessOnboardingCategory(vendor.category)}
+        />
       </Card>
 
       <Card>

@@ -11,7 +11,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Vendor } from "@prisma/client";
+import type { Vendor, VendorBookingProgress } from "@prisma/client";
 import { VendorCard } from "@/components/vendors/VendorCard";
 import { Button } from "@/components/ui/Button";
 import type { BudgetFitResult } from "@/lib/budget-fit";
@@ -20,12 +20,14 @@ export function VendorGrid({
   vendors,
   hasWeddingPass,
   budgetFitByVendorId,
+  bookingProgressByVendorId,
 }: {
   vendors: Vendor[];
   hasWeddingPass: boolean;
   /** Keyed by vendor id — only ever populated for unlocked vendors with
    *  a matched budget category; see lib/budget-fit.ts. */
   budgetFitByVendorId: Record<string, BudgetFitResult>;
+  bookingProgressByVendorId: Record<string, VendorBookingProgress>;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
   const router = useRouter();
@@ -52,6 +54,7 @@ export function VendorGrid({
             selected={selected.includes(vendor.id)}
             onToggleSelect={toggle}
             budgetFit={budgetFitByVendorId[vendor.id]}
+            bookingProgress={bookingProgressByVendorId[vendor.id]}
           />
         ))}
       </div>

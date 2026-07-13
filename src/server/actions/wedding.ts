@@ -80,7 +80,7 @@ export async function createWeddingPlan(rawInput: OnboardingInput): Promise<Crea
       ownerUserId: user.id,
       members: { create: { userId: user.id, role: "OWNER" } },
       checklistItems: { createMany: { data: buildDefaultChecklist(input.weddingDate) } },
-      budgetCategories: { createMany: { data: buildDefaultBudgetCategories(input.totalBudgetGHS) } },
+      budgetCategories: { createMany: { data: buildDefaultBudgetCategories() } },
       coupleProfile: {
         create: {
           partner1Name: orUndefined(input.partner1Name),

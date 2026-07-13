@@ -6,7 +6,7 @@
 // boundary behavior is isolated.
 
 import { describe, expect, it } from "vitest";
-import { getWeddingHealthScore, type WeddingHealthInput } from "@/lib/wedding-health";
+import { getHealthScoreSummary, getWeddingHealthScore, type WeddingHealthInput, type WeddingHealthResult } from "@/lib/wedding-health";
 
 function buildInput(overrides: Partial<WeddingHealthInput> = {}): WeddingHealthInput {
   return {
@@ -189,5 +189,87 @@ describe("getWeddingHealthScore — overall score and status bands", () => {
     expect(result.status).toBe("needs-attention");
     expect(result.score).toBeGreaterThanOrEqual(55);
     expect(result.score).toBeLessThan(80);
+  });
+});
+
+describe("getHealthScoreSummary", () => {
+  function buildResult(overrides: Partial<WeddingHealthResult> = {}): WeddingHealthResult {
+    return {
+      score: 84,
+      status: "on-track",
+      statusLabel: "🟢 On Track",
+      timeline: { score: 90, label: "Ahead of schedule" },
+      budget: { score: 95, label: "Healthy" },
+      vendors: { score: 64, label: "9/14 booked" },
+      guests: { score: 80, label: "80% confirmed" },
+      ...overrides,
+    };
+  }
+
+  it("always states the vendor booking count as a completed/informational line, regardless of how good the ratio is", () => {
+    const good = getHealthScoreSummary(buildResult(), { unbookedCategoryLabels: [] });
+    expect(good.completed).toContain("9 of 14 vendors booked");
+
+    const poor = getHealthScoreSummary(buildResult({ vendors: { score: 10, label: "1/14 booked" } }), {
+      unbookedCategoryLabels: [],
+    });
+    expect(poor.completed).toContain("1 of 14 vendors booked");
+  });
+
+  it("names up to 2 specific unbooked categories as improve bullets", () => {
+    const summary = getHealthScoreSummary(buildResult(), {
+      unbookedCategoryLabels: ["Hair & Makeup", "Transportation", "Jewellery"],
+    });
+    expect(summary.improve).toContain("Secure a Hair & Makeup vendor");
+    expect(summary.improve).toContain("Finalise Transportation");
+    expect(summary.improve).not.toContain("Secure a Jewellery vendor");
+  });
+
+  it("credits a healthy budget as completed, at or above the 75-score threshold", () => {
+    const healthy = getHealthScoreSummary(buildResult({ budget: { score: 75, label: "On track" } }), {
+      unbookedCategoryLabels: [],
+    });
+    expect(healthy.completed).toContain("Budget is healthy");
+
+    const unhealthy = getHealthScoreSummary(buildResult({ budget: { score: 50, label: "Watch spending" } }), {
+      unbookedCategoryLabels: [],
+    });
+    expect(unhealthy.improve).toContain("Review your budget — Watch spending");
+  });
+
+  it("flags a behind-schedule timeline as improve, everything else as completed", () => {
+    const behind = getHealthScoreSummary(buildResult({ timeline: { score: 30, label: "Behind schedule" } }), {
+      unbookedCategoryLabels: [],
+    });
+    expect(behind.improve.some((line) => line.includes("behind schedule"))).toBe(true);
+
+    const onPace = getHealthScoreSummary(buildResult({ timeline: { score: 75, label: "On pace" } }), {
+      unbookedCategoryLabels: [],
+    });
+    expect(onPace.completed).toContain("Timeline is on pace");
+  });
+
+  it("credits most RSVPs received as completed at or above the 70-score threshold, else asks to follow up", () => {
+    const good = getHealthScoreSummary(buildResult({ guests: { score: 70, label: "70% confirmed" } }), {
+      unbookedCategoryLabels: [],
+    });
+    expect(good.completed).toContain("Most RSVP responses received");
+
+    const poor = getHealthScoreSummary(buildResult({ guests: { score: 40, label: "40% confirmed" } }), {
+      unbookedCategoryLabels: [],
+    });
+    expect(poor.improve).toContain("Follow up with pending RSVPs");
+  });
+
+  it("caps the improve list so a badly-off wedding doesn't get an overwhelming wall of bullets", () => {
+    const summary = getHealthScoreSummary(
+      buildResult({
+        budget: { score: 15, label: "Over budget" },
+        timeline: { score: 10, label: "Behind schedule" },
+        guests: { score: 20, label: "20% confirmed" },
+      }),
+      { unbookedCategoryLabels: ["Venue", "Photography", "Catering"] }
+    );
+    expect(summary.improve.length).toBeLessThanOrEqual(4);
   });
 });

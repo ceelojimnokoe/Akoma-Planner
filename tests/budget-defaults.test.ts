@@ -1,37 +1,34 @@
 // tests/budget-defaults.test.ts
 //
-// Guards the default budget split's own invariant: percentages must sum
-// to exactly 100, or a fresh wedding plan's categories silently
-// over/under-allocate the couple's total budget. Worth a regression test
-// specifically because Accommodation was just inserted by hand-adjusting
-// every other entry's percentage.
+// buildDefaultBudgetCategories() derives its 15 rows (the 14 standardized
+// vendor categories plus Accommodation) directly from
+// ONBOARDING_VENDOR_CATEGORIES rather than an independently hand-typed
+// list — this guards that the two never drift apart, and that every row
+// starts zero-filled (the "—" placeholder philosophy, not a guessed
+// percentage split of the total budget).
 
 import { describe, expect, it } from "vitest";
-import { DEFAULT_BUDGET_SPLIT, buildDefaultBudgetCategories } from "@/lib/budget-defaults";
-
-describe("DEFAULT_BUDGET_SPLIT", () => {
-  it("sums to exactly 100%", () => {
-    const total = DEFAULT_BUDGET_SPLIT.reduce((sum, entry) => sum + entry.percentOfBudget, 0);
-    expect(total).toBe(100);
-  });
-
-  it("includes Accommodation as a real category", () => {
-    expect(DEFAULT_BUDGET_SPLIT.some((entry) => entry.name === "Accommodation")).toBe(true);
-  });
-});
+import { buildDefaultBudgetCategories } from "@/lib/budget-defaults";
+import { ONBOARDING_VENDOR_CATEGORIES } from "@/lib/validation/wedding";
 
 describe("buildDefaultBudgetCategories", () => {
-  it("allocates the full total budget across all categories, none spent yet", () => {
-    const categories = buildDefaultBudgetCategories(100_000);
-    const totalAllocated = categories.reduce((sum, c) => sum + c.allocatedGHS, 0);
-    expect(totalAllocated).toBe(100_000);
-    expect(categories.every((c) => c.spentGHS === 0)).toBe(true);
+  it("returns one row per onboarding category plus Accommodation", () => {
+    const categories = buildDefaultBudgetCategories();
+    expect(categories).toHaveLength(ONBOARDING_VENDOR_CATEGORIES.length + 1);
   });
 
-  it("gives Accommodation a real, non-zero allocation", () => {
-    const categories = buildDefaultBudgetCategories(100_000);
-    const accommodation = categories.find((c) => c.name === "Accommodation");
-    expect(accommodation).toBeDefined();
-    expect(accommodation!.allocatedGHS).toBeGreaterThan(0);
+  it("names every row after ONBOARDING_VENDOR_CATEGORIES' labels, plus Accommodation", () => {
+    const categories = buildDefaultBudgetCategories();
+    const names = categories.map((c) => c.name);
+    for (const c of ONBOARDING_VENDOR_CATEGORIES) {
+      expect(names).toContain(c.label);
+    }
+    expect(names).toContain("Accommodation");
+  });
+
+  it("starts every row at zero — the couple fills in real numbers themselves", () => {
+    const categories = buildDefaultBudgetCategories();
+    expect(categories.every((c) => c.allocatedGHS === 0)).toBe(true);
+    expect(categories.every((c) => c.spentGHS === 0)).toBe(true);
   });
 });

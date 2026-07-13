@@ -68,7 +68,7 @@ export function VendorInterestPanel({
       {error && <p className="rounded-lg bg-akoma-terracotta/10 px-3 py-2 text-sm text-akoma-terracotta">{error}</p>}
       {notice && <p className="rounded-lg bg-akoma-green/10 px-3 py-2 text-sm text-akoma-green">{notice}</p>}
 
-      {!interest && (
+      {(!interest || interest.draftMessage == null) && (
         <div>
           <p className="mb-3 text-sm text-akoma-ink/70">No enquiry started with this vendor yet.</p>
           <Button size="sm" disabled={isPending} onClick={handleDraft}>
@@ -78,7 +78,7 @@ export function VendorInterestPanel({
         </div>
       )}
 
-      {interest?.status === "DRAFT" && (
+      {interest?.status === "DRAFT" && interest.draftMessage != null && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Badge tone="neutral">Draft — not sent</Badge>

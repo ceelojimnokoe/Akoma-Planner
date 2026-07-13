@@ -25,22 +25,38 @@ interface BudgetCategoryLike {
 }
 
 // Vendor categories and the free-text default budget category names
-// don't 1:1 match (e.g. "Photography & Media" vs. PHOTOGRAPHY) — this is
-// a deliberately loose, case-insensitive keyword lookup, not a strict
-// enum mapping. MAKEUP and OTHER have no sensible default counterpart
-// and are left unmapped on purpose, matching this file's own
-// no-match-means-no-indicator rule rather than guessing.
+// don't 1:1 match (e.g. default budget rows are now named after
+// ONBOARDING_VENDOR_CATEGORIES' labels — "Entertainment / DJ", "Hair &
+// Makeup" — not the catalog's own enum words) — this is a deliberately
+// loose, case-insensitive keyword lookup, not a strict enum mapping.
+// OTHER has no sensible default counterpart and is left unmapped on
+// purpose, matching this file's own no-match-means-no-indicator rule
+// rather than guessing.
+//
+// ATTIRE is deliberately mapped to "bridal" ONLY, never "groom" or a
+// bare "wear" — the catalog has one ATTIRE value but the default budget
+// set has two rows ("Bridal Wear" / "Groom's Wear"), and this function
+// has no way to tell which kind of attire vendor it's looking at. A
+// generic "wear" keyword would silently match "Bridal Wear" first every
+// time (array order), showing a wrong budget-fit for groom's-wear
+// vendors instead of none — matching only "bridal" means a groom's-wear
+// vendor shows no indicator at all, same directional bias as
+// lib/vendor-booking-progress.ts's guessOnboardingCategory (ATTIRE →
+// BRIDAL_WEAR), never a misleading one.
 const VENDOR_CATEGORY_TO_BUDGET_KEYWORDS: Record<VendorCategory, string[]> = {
   VENUE: ["venue"],
   CATERING: ["catering"],
   PHOTOGRAPHY: ["photography", "photo"],
-  ATTIRE: ["attire"],
+  ATTIRE: ["bridal"],
   DECOR: ["decor"],
-  MUSIC: ["music"],
-  MAKEUP: [],
+  MUSIC: ["music", "entertainment", "dj", "band"],
+  MAKEUP: ["makeup", "hair"],
   TRANSPORT: ["transport"],
   CAKE: ["cake"],
   OTHER: [],
+  JEWELLERY: ["jewellery", "jewelry", "ring"],
+  MC: ["master of ceremonies", "emcee", "mc"],
+  PLANNER: ["planner", "coordinator"],
 };
 
 function findCategoryByKeywords<T extends BudgetCategoryLike>(categories: T[], keywords: string[]): T | null {

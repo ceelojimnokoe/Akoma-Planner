@@ -12,17 +12,32 @@ import { VendorGrid } from "@/components/vendors/VendorGrid";
 import { LinkButton } from "@/components/ui/Button";
 import { PassBadge } from "@/components/ui/Badge";
 import { getBudgetFit, matchVendorBudgetCategory, type BudgetFitResult } from "@/lib/budget-fit";
-import type { City, VendorCategory } from "@prisma/client";
+import type { City, VendorBookingProgress, VendorCategory } from "@prisma/client";
+
+const PRICE_RANGES: Record<string, { lt?: number; gte?: number }> = {
+  low: { lt: 5000 },
+  mid: { gte: 5000, lt: 15000 },
+  high: { gte: 15000 },
+};
 
 export default async function VendorsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; city?: string; featured?: string; withinBudget?: string }>;
+  searchParams: Promise<{
+    category?: string;
+    city?: string;
+    featured?: string;
+    withinBudget?: string;
+    rating?: string;
+    price?: string;
+    status?: string;
+  }>;
 }) {
-  const { category, city, featured, withinBudget } = await searchParams;
+  const { category, city, featured, withinBudget, rating, price, status } = await searchParams;
   const weddingPlan = await getCurrentWeddingPlan();
+  const priceRange = price ? PRICE_RANGES[price] : undefined;
 
-  const [vendors, budgetCategories] = await Promise.all([
+  const [vendors, budgetCategories, interests] = await Promise.all([
     prisma.vendor.findMany({
       where: {
         ...(category ? { category: category as VendorCategory } : {}),
@@ -31,11 +46,21 @@ export default async function VendorsPage({
         // featured (isProFeatured) — not the viewer's own Wedding Pass
         // status, which is a separate gate (see `locked` below).
         ...(featured === "FEATURED" ? { isProFeatured: true } : featured === "STANDARD" ? { isProFeatured: false } : {}),
+        ...(rating ? { rating: { gte: Number(rating) } } : {}),
+        ...(priceRange ? { priceLowGHS: priceRange } : {}),
       },
       orderBy: [{ rating: "desc" }],
     }),
     prisma.budgetCategory.findMany({ where: { weddingPlanId: weddingPlan!.id } }),
+    prisma.vendorInterest.findMany({
+      where: { weddingPlanId: weddingPlan!.id },
+      select: { vendorId: true, bookingProgress: true },
+    }),
   ]);
+
+  const bookingProgressByVendorId: Record<string, VendorBookingProgress> = Object.fromEntries(
+    interests.map((i) => [i.vendorId, i.bookingProgress])
+  );
 
   // Only computed for unlocked vendors — a locked (Pro-featured, Free
   // viewer) card already hides price entirely, and a fit badge would
@@ -48,14 +73,19 @@ export default async function VendorsPage({
     if (matched) budgetFitByVendorId[vendor.id] = getBudgetFit(vendor.priceLowGHS, matched);
   }
 
-  // Locked vendors are never hidden by this filter — their fit can't be
-  // computed without revealing price, so they stay visible regardless
-  // (same "always visibly present" philosophy this page already applies
-  // to featured listings generally).
-  const visibleVendors =
-    withinBudget === "1"
-      ? vendors.filter((v) => (v.isProFeatured && !weddingPlan!.hasWeddingPass) || budgetFitByVendorId[v.id]?.fits)
-      : vendors;
+  // Locked vendors are never hidden by the budget filter — their fit
+  // can't be computed without revealing price, so they stay visible
+  // regardless (same "always visibly present" philosophy this page
+  // already applies to featured listings generally).
+  let visibleVendors = vendors;
+  if (withinBudget === "1") {
+    visibleVendors = visibleVendors.filter(
+      (v) => (v.isProFeatured && !weddingPlan!.hasWeddingPass) || budgetFitByVendorId[v.id]?.fits
+    );
+  }
+  if (status) {
+    visibleVendors = visibleVendors.filter((v) => (bookingProgressByVendorId[v.id] ?? "NOT_CONTACTED") === status);
+  }
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -71,12 +101,25 @@ export default async function VendorsPage({
         </LinkButton>
       </div>
 
-      <VendorFilters category={category} city={city} featured={featured} withinBudget={withinBudget} />
+      <VendorFilters
+        category={category}
+        city={city}
+        featured={featured}
+        withinBudget={withinBudget}
+        rating={rating}
+        price={price}
+        status={status}
+      />
 
       {visibleVendors.length === 0 ? (
         <p className="py-12 text-center text-sm text-akoma-ink/50">No vendors match those filters.</p>
       ) : (
-        <VendorGrid vendors={visibleVendors} hasWeddingPass={weddingPlan!.hasWeddingPass} budgetFitByVendorId={budgetFitByVendorId} />
+        <VendorGrid
+          vendors={visibleVendors}
+          hasWeddingPass={weddingPlan!.hasWeddingPass}
+          budgetFitByVendorId={budgetFitByVendorId}
+          bookingProgressByVendorId={bookingProgressByVendorId}
+        />
       )}
     </div>
   );

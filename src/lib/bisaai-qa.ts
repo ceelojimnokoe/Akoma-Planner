@@ -17,8 +17,9 @@
 // lib/bisaai.ts) already assembles exactly that input for this file.
 
 import { formatGHS } from "./currency";
-import type { WeddingContext } from "./bisaai-context";
-import type { OnboardingVendorCategory } from "@prisma/client";
+import type { WeddingContext, VendorInterestSummary } from "./bisaai-context";
+import { matchVendorBudgetCategory } from "./budget-fit";
+import type { OnboardingVendorCategory, VendorBookingProgress } from "@prisma/client";
 
 function humanize(category: string): string {
   return category.charAt(0) + category.slice(1).toLowerCase().replace(/_/g, " ");
@@ -270,7 +271,20 @@ export interface ProactiveSuggestion {
 
 const SEVERITY_RANK: Record<ProactiveSuggestion["severity"], number> = { warning: 0, info: 1, positive: 2 };
 
-const CRITICAL_VENDOR_CATEGORIES: OnboardingVendorCategory[] = ["VENUE", "PHOTOGRAPHER", "CATERER"];
+export const CRITICAL_VENDOR_CATEGORIES: OnboardingVendorCategory[] = ["VENUE", "PHOTOGRAPHER", "CATERER"];
+const BEYOND_SHORTLIST: VendorBookingProgress[] = ["ENQUIRY_SENT", "MEETING_SCHEDULED", "NEGOTIATING", "BOOKED"];
+const ACTIVELY_IN_PROGRESS: VendorBookingProgress[] = ["ENQUIRY_SENT", "MEETING_SCHEDULED", "NEGOTIATING"];
+
+function groupInterestsByCategory(interests: VendorInterestSummary[]): Map<OnboardingVendorCategory, VendorInterestSummary[]> {
+  const map = new Map<OnboardingVendorCategory, VendorInterestSummary[]>();
+  for (const interest of interests) {
+    if (!interest.onboardingCategory) continue;
+    const list = map.get(interest.onboardingCategory) ?? [];
+    list.push(interest);
+    map.set(interest.onboardingCategory, list);
+  }
+  return map;
+}
 
 /** ~7 deterministic rules over real wedding data — the "proactive" half
  *  of BisaAI. Each rule fires zero or one suggestion; the caller (see
@@ -297,11 +311,75 @@ export function generateProactiveSuggestions(ctx: WeddingContext): ProactiveSugg
     });
   }
 
-  const unbookedCritical = CRITICAL_VENDOR_CATEGORIES.filter((c) => ctx.vendors.byCategory[c] !== "BOOKED");
-  if (unbookedCritical.length > 0 && ctx.daysUntil <= 70 && ctx.daysUntil >= 0) {
+  const interestsByCategory = groupInterestsByCategory(ctx.vendors.interests);
+
+  // Refined from a plain "!== BOOKED" check: a category already
+  // RESEARCHING/NEGOTIATING is real progress, not inaction — this rule
+  // is specifically for critical categories with zero real interest yet.
+  const untouchedCritical = CRITICAL_VENDOR_CATEGORIES.filter((c) => {
+    const list = interestsByCategory.get(c) ?? [];
+    return !list.some((i) => i.bookingProgress !== "NOT_CONTACTED");
+  });
+  if (untouchedCritical.length > 0 && ctx.daysUntil <= 70 && ctx.daysUntil >= 0) {
     suggestions.push({
       id: "vendor-unbooked-urgent",
-      message: `You haven't booked a ${humanize(unbookedCritical[0])} yet, and your wedding is only ${weeksAway(ctx.daysUntil)} away.`,
+      message: `You haven't contacted any ${humanize(untouchedCritical[0])}s yet, and your wedding is only ${weeksAway(ctx.daysUntil)} away.`,
+      severity: "warning",
+      actionLabel: "Browse vendors",
+      actionHref: "/vendors",
+    });
+  }
+
+  // Gentler, further-out sibling of the urgent rule above — fires only
+  // past that rule's 70-day threshold so the two don't double up for the
+  // same category with conflicting tones (warning vs. encouragement).
+  const bookedCriticalCount = CRITICAL_VENDOR_CATEGORIES.filter((c) => ctx.vendors.byCategory[c] === "BOOKED").length;
+  if (bookedCriticalCount >= 2 && ctx.daysUntil > 70 && ctx.daysUntil <= 100) {
+    const nextUnbooked = CRITICAL_VENDOR_CATEGORIES.find((c) => ctx.vendors.byCategory[c] !== "BOOKED");
+    if (nextUnbooked) {
+      const bookedNames = CRITICAL_VENDOR_CATEGORIES.filter((c) => ctx.vendors.byCategory[c] === "BOOKED").map(humanize);
+      suggestions.push({
+        id: "vendor-next-category",
+        message: `You've already secured your ${bookedNames.join(" and ")}. Since your wedding is only ${monthsAway(ctx.daysUntil)} away, I recommend booking ${humanize(nextUnbooked)} next.`,
+        severity: "info",
+        actionLabel: "Browse vendors",
+        actionHref: "/vendors",
+      });
+    }
+  }
+
+  // A category with several shortlisted vendors but no enquiry sent to
+  // any of them yet — the shortlist stalled before the next real step.
+  const stalledEntry = [...interestsByCategory.entries()].find(([, list]) => {
+    const shortlistedCount = list.filter((i) => i.bookingProgress === "SHORTLISTED").length;
+    const hasProgressedFurther = list.some((i) => BEYOND_SHORTLIST.includes(i.bookingProgress));
+    return shortlistedCount >= 2 && !hasProgressedFurther;
+  });
+  if (stalledEntry) {
+    const [category, list] = stalledEntry;
+    const shortlistedCount = list.filter((i) => i.bookingProgress === "SHORTLISTED").length;
+    suggestions.push({
+      id: "vendor-shortlisted-stalled",
+      message: `You've shortlisted ${shortlistedCount} ${humanize(category)}s but haven't sent any enquiries yet.`,
+      severity: "info",
+      actionLabel: "Browse vendors",
+      actionHref: "/vendors",
+    });
+  }
+
+  // A vendor the couple is actively talking to (enquiry sent or further)
+  // whose price already exceeds the matching budget category's allocation.
+  const overBudgetInterest = ctx.vendors.interests.find((i) => {
+    if (!ACTIVELY_IN_PROGRESS.includes(i.bookingProgress)) return false;
+    const matched = matchVendorBudgetCategory(i.vendorCategory, ctx.budget.categories);
+    return matched != null && i.priceLowGHS > matched.allocatedGHS;
+  });
+  if (overBudgetInterest) {
+    const matched = matchVendorBudgetCategory(overBudgetInterest.vendorCategory, ctx.budget.categories)!;
+    const over = overBudgetInterest.priceLowGHS - matched.allocatedGHS;
+    suggestions.push({
+      id: "vendor-over-budget",
+      message: `The ${overBudgetInterest.vendorName} you're considering exceeds your allocated ${matched.name} budget by ${formatGHS(over)}. Would you like BisaAI to recommend alternatives within your budget?`,
       severity: "warning",
       actionLabel: "Browse vendors",
       actionHref: "/vendors",

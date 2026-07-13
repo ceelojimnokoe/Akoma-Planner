@@ -15,11 +15,13 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import type { Vendor } from "@prisma/client";
+import type { Vendor, VendorBookingProgress } from "@prisma/client";
 import { Badge, FeaturedBadge } from "@/components/ui/Badge";
 import { formatGHS } from "@/lib/currency";
 import { getVendorImage } from "@/lib/vendor-images";
 import type { BudgetFitResult } from "@/lib/budget-fit";
+import { VENDOR_PROGRESS_LABEL, VENDOR_PROGRESS_TONE } from "@/lib/vendor-booking-progress";
+import { VENDOR_CATEGORY_LABEL } from "@/lib/vendor-category-labels";
 
 export function VendorCard({
   vendor,
@@ -28,6 +30,7 @@ export function VendorCard({
   selected,
   onToggleSelect,
   budgetFit,
+  bookingProgress,
 }: {
   vendor: Vendor;
   locked: boolean;
@@ -39,12 +42,22 @@ export function VendorCard({
    *  undefined also just means "no matching budget category" — see
    *  lib/budget-fit.ts's own no-match-means-no-indicator rule. */
   budgetFit?: BudgetFitResult;
+  /** Only rendered beyond NOT_CONTACTED — a badge on every untouched
+   *  vendor would just be noise. */
+  bookingProgress?: VendorBookingProgress;
 }) {
+  const showProgressBadge = bookingProgress && bookingProgress !== "NOT_CONTACTED";
+
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-akoma-ink/10 bg-white shadow-sm">
       <Link href={`/vendors/${vendor.id}`} className="relative block h-44 w-full shrink-0 bg-akoma-cream">
         <Image src={getVendorImage(vendor)} alt={vendor.name} fill className="object-cover" />
         {vendor.isProFeatured && <FeaturedBadge className="absolute left-3 top-3" />}
+        {showProgressBadge && (
+          <Badge tone={VENDOR_PROGRESS_TONE[bookingProgress]} className="absolute right-3 top-3">
+            {VENDOR_PROGRESS_LABEL[bookingProgress]}
+          </Badge>
+        )}
       </Link>
 
       <div className="flex flex-1 flex-col p-5">
@@ -98,7 +111,7 @@ export function VendorCard({
 }
 
 export function categoryLabel(category: string): string {
-  return category.charAt(0) + category.slice(1).toLowerCase().replace(/_/g, " ");
+  return VENDOR_CATEGORY_LABEL[category as keyof typeof VENDOR_CATEGORY_LABEL] ?? category;
 }
 
 export function cityLabel(city: string): string {

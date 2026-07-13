@@ -9,10 +9,10 @@
 // Two lookup tables, not one, because two different category enums exist
 // in this codebase on purpose (see prisma/schema.prisma's
 // OnboardingVendorCategory comment): the real Vendor catalog's
-// VendorCategory (10 values, what VendorCard/vendor listings use) and
-// the onboarding wizard's OnboardingVendorCategory (12 values, what the
-// dashboard's Vendor Status card uses). Both point at the same 14-image
-// set — swapping a placeholder file's contents (or a vendor's real
+// VendorCategory (13 values, what VendorCard/vendor listings use) and
+// the onboarding wizard's OnboardingVendorCategory (14 values, what the
+// dashboard's Vendor Status card uses). MC reuses the same mc.svg in both
+// tables; swapping a placeholder file's contents (or a vendor's real
 // imageUrl) never requires touching the components below.
 
 import type { StaticImageData } from "next/image";
@@ -23,12 +23,14 @@ import caterer from "@/assets/images/vendors/caterer.svg";
 import djBand from "@/assets/images/vendors/dj-band.svg";
 import mc from "@/assets/images/vendors/mc.svg";
 import decor from "@/assets/images/vendors/decor.svg";
-import florist from "@/assets/images/vendors/florist.svg";
+import planner from "@/assets/images/vendors/planner.svg";
 import makeup from "@/assets/images/vendors/makeup.svg";
-import hair from "@/assets/images/vendors/hair.svg";
+import jewellery from "@/assets/images/vendors/jewellery.svg";
 import cake from "@/assets/images/vendors/cake.svg";
 import transportation from "@/assets/images/vendors/transportation.svg";
 import attire from "@/assets/images/vendors/attire.svg";
+import bridalWear from "@/assets/images/vendors/bridal-wear.svg";
+import groomsWear from "@/assets/images/vendors/grooms-wear.svg";
 import other from "@/assets/images/vendors/other.svg";
 
 /** Keyed by the real Vendor catalog's category enum (VendorCard, vendor listings, /vendors/[vendorId]). */
@@ -43,20 +45,25 @@ export const VENDOR_CATEGORY_IMAGES: Record<string, StaticImageData> = {
   TRANSPORT: transportation,
   CAKE: cake,
   OTHER: other,
+  JEWELLERY: jewellery,
+  MC: mc,
+  PLANNER: planner,
 };
 
-/** Keyed by the onboarding wizard's 12-category list (dashboard's Vendor Status card). */
+/** Keyed by the onboarding wizard's 14-category list (dashboard's Vendor Status card). */
 export const ONBOARDING_CATEGORY_IMAGES: Record<string, StaticImageData> = {
   VENUE: venue,
   PHOTOGRAPHER: photographer,
   VIDEOGRAPHER: videographer,
   CATERER: caterer,
+  DECOR: decor,
+  PLANNER: planner,
   DJ_BAND: djBand,
   MC: mc,
-  DECOR: decor,
-  FLORIST: florist,
+  BRIDAL_WEAR: bridalWear,
+  GROOMS_WEAR: groomsWear,
   MAKEUP: makeup,
-  HAIR: hair,
+  JEWELLERY: jewellery,
   CAKE: cake,
   TRANSPORTATION: transportation,
 };

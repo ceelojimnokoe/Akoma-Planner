@@ -69,6 +69,9 @@ enum VendorCategory {
   TRANSPORT
   CAKE
   OTHER
+  JEWELLERY
+  MC
+  PLANNER
 }
 
 // Lifecycle of a couple's interest in a vendor. This enum is the backbone of
@@ -82,6 +85,24 @@ enum VendorInterestStatus {
   QUOTED // vendor responded with a quote (entered manually for MVP)
   ACCEPTED // couple explicitly approved the quote — a human-only transition
   DECLINED
+}
+
+// The couple's real-world progress with one vendor — deliberately
+// independent of VendorInterestStatus above. That enum tracks the state
+// of an in-app AI-drafted enquiry/quote artifact; this one tracks "where
+// am I in the process of securing this vendor," which is just as often
+// answered entirely outside the app (a phone call, WhatsApp, a wedding
+// fair) as through it. See lib/vendor-booking-progress.ts for the rank
+// ordering (Prisma/SQLite enums are checked strings with no ordinal
+// guarantee — never rely on declaration order here for comparisons).
+enum VendorBookingProgress {
+  NOT_CONTACTED
+  SHORTLISTED
+  ENQUIRY_SENT
+  MEETING_SCHEDULED
+  NEGOTIATING
+  BOOKED
+  NOT_SELECTED
 }
 
 // ---------------------------------------------------------------------------
@@ -333,20 +354,26 @@ model CoupleProfile {
 // A separate, purpose-built category list for the onboarding "have you
 // booked this yet?" checklist — deliberately NOT the same enum as
 // VendorCategory (which drives the real Vendor catalog/seed data and
-// doesn't split out Videographer/DJ/MC/Florist/Hair the way this list
-// does). Changing that enum to match would ripple through the whole
-// vendor-browsing feature for a much smaller self-reported checklist.
+// doesn't split out Videographer/DJ/MC/Planner/Bridal/Groom's/Jewellery
+// the way this list does). Changing that enum to match would ripple
+// through the whole vendor-browsing feature for a much smaller
+// self-reported checklist. The 14 values here are the app's standardized
+// primary vendor categories (see lib/validation/wedding.ts's
+// ONBOARDING_VENDOR_CATEGORIES for display labels/ordering — member names
+// here are stable identifiers, not the display text).
 enum OnboardingVendorCategory {
   VENUE
   PHOTOGRAPHER
   VIDEOGRAPHER
   CATERER
+  DECOR
+  PLANNER
   DJ_BAND
   MC
-  DECOR
-  FLORIST
+  BRIDAL_WEAR
+  GROOMS_WEAR
   MAKEUP
-  HAIR
+  JEWELLERY
   CAKE
   TRANSPORTATION
 }
@@ -488,17 +515,26 @@ model Vendor {
 // concrete implementation of the "draft-and-approve, never autonomous"
 // rule — see the VendorInterestStatus enum comment above for the invariant.
 model VendorInterest {
-  id             String               @id @default(cuid())
-  weddingPlanId  String
-  weddingPlan    WeddingPlan          @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
-  vendorId       String
-  vendor         Vendor               @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  status         VendorInterestStatus @default(DRAFT)
-  draftMessage   String? // BisaAI-authored or hand-written enquiry/negotiation text, pre-send
-  quoteAmountGHS Float? // entered once the vendor responds (manual for MVP)
-  notes          String?
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
+  id                 String                    @id @default(cuid())
+  weddingPlanId      String
+  weddingPlan        WeddingPlan               @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
+  vendorId           String
+  vendor             Vendor                    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  status             VendorInterestStatus      @default(DRAFT)
+  draftMessage       String? // BisaAI-authored or hand-written enquiry/negotiation text, pre-send
+  quoteAmountGHS     Float? // entered once the vendor responds (manual for MVP)
+  notes              String?
+  // Real-world booking progress (see VendorBookingProgress's own comment)
+  // and which of the 12 onboarding categories it counts against — set by
+  // the ungated setVendorBookingProgress action (server/actions/vendor-booking.ts),
+  // never by anything in lib/bisaai.ts. Nullable: ATTIRE/OTHER vendors
+  // (VendorCategory values) have no OnboardingVendorCategory equivalent
+  // at all, so "not tracked as a booking category" is a real, distinct
+  // state from "not yet chosen."
+  bookingProgress    VendorBookingProgress     @default(NOT_CONTACTED)
+  onboardingCategory OnboardingVendorCategory?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
 
   @@unique([weddingPlanId, vendorId])
 }

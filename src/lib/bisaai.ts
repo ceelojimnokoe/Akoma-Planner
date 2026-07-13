@@ -45,6 +45,7 @@ import { formatGHS } from "./currency";
 import { calculateGuestStats } from "./guests";
 import { getWeddingContext } from "./bisaai-context";
 import { generateProactiveSuggestions, generateQAAnswer, type ProactiveSuggestion } from "./bisaai-qa";
+import { VENDOR_CATEGORY_LABEL } from "./vendor-category-labels";
 
 // ---------------------------------------------------------------------------
 // Shared response envelope
@@ -799,7 +800,7 @@ function titleCase(s: string): string {
 }
 
 function categoryLabel(category: VendorCategory): string {
-  return category.charAt(0) + category.slice(1).toLowerCase();
+  return VENDOR_CATEGORY_LABEL[category];
 }
 
 function parseHHMM(hhmm: string): number {

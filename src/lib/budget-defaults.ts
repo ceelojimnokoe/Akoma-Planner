@@ -1,28 +1,28 @@
 // src/lib/budget-defaults.ts
 //
-// Starter budget category split offered when a new wedding plan is
-// created, so the Budget tool isn't empty on day one. Percentages are a
-// typical/common allocation pattern for Ghanaian weddings (also referenced
-// in BisaAI's basicQA knowledge base — see lib/bisaai.ts) — a starting
-// point the couple is expected to adjust, not a rule.
+// Starter budget categories every new wedding plan gets on day one, so
+// the Budget tool isn't empty and the couple never has to manually
+// re-create the same common wedding categories. Derived directly from
+// ONBOARDING_VENDOR_CATEGORIES (lib/validation/wedding.ts) — the app's
+// single 14-category taxonomy — rather than an independently hand-typed
+// list, so Budget/Vendor Status/Checklist/Health Score never drift apart
+// again the way the old percentage-split list (differently named, only
+// loosely fuzzy-matched against vendor categories) used to.
+//
+// Rows start at allocatedGHS: 0/spentGHS: 0 — a deliberate philosophy
+// change from "pre-fill a guessed percentage of the entered total
+// budget" to "guarantee the row exists, let the couple fill in the real
+// number themselves" (see BudgetCategoryRow.tsx's "—" placeholder
+// treatment for zero-value rows).
+//
+// "Accommodation" is added as one more row alongside the 14 vendor
+// categories, even though it isn't one of them — app/(app)/accommodation
+// pages already look up a budget category literally named "Accommodation"
+// (lib/budget-fit.ts's matchBudgetCategoryByName), and dropping it would
+// silently regress that page's existing budget-fit badge for every new
+// wedding plan.
 
-export interface BudgetSplitEntry {
-  name: string;
-  percentOfBudget: number;
-}
-
-export const DEFAULT_BUDGET_SPLIT: BudgetSplitEntry[] = [
-  { name: "Venue", percentOfBudget: 23 },
-  { name: "Catering", percentOfBudget: 19 },
-  { name: "Attire", percentOfBudget: 14 },
-  { name: "Traditional Rites", percentOfBudget: 11 },
-  { name: "Photography & Media", percentOfBudget: 10 },
-  { name: "Decor", percentOfBudget: 7 },
-  { name: "Accommodation", percentOfBudget: 6 },
-  { name: "Music & Entertainment", percentOfBudget: 5 },
-  { name: "Transport", percentOfBudget: 3 },
-  { name: "Cake", percentOfBudget: 2 },
-];
+import { ONBOARDING_VENDOR_CATEGORIES } from "./validation/wedding";
 
 export interface BuiltBudgetCategory {
   name: string;
@@ -30,10 +30,10 @@ export interface BuiltBudgetCategory {
   spentGHS: 0;
 }
 
-export function buildDefaultBudgetCategories(totalBudgetGHS: number): BuiltBudgetCategory[] {
-  return DEFAULT_BUDGET_SPLIT.map((entry) => ({
-    name: entry.name,
-    allocatedGHS: Math.round(totalBudgetGHS * (entry.percentOfBudget / 100)),
+export function buildDefaultBudgetCategories(): BuiltBudgetCategory[] {
+  return [...ONBOARDING_VENDOR_CATEGORIES.map((c) => c.label), "Accommodation"].map((name) => ({
+    name,
+    allocatedGHS: 0,
     spentGHS: 0,
   }));
 }

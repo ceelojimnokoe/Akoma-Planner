@@ -25,6 +25,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requirePass } from "@/lib/plan";
 import { draftVendorMessage, draftNegotiationMessage } from "@/lib/bisaai";
+import { setVendorBookingProgress } from "@/server/actions/vendor-booking";
 
 async function requirePassForWedding(weddingPlanId: string, featureLabel: string) {
   const weddingPlan = await prisma.weddingPlan.findUniqueOrThrow({ where: { id: weddingPlanId } });
@@ -78,10 +79,18 @@ export async function sendVendorMessage(input: {
   const gate = await requirePassForWedding(input.weddingPlanId, "Vendor messaging");
   if (!gate.allowed) return { ok: false, error: gate.upgradeReason };
 
-  await prisma.vendorInterest.update({
+  const updated = await prisma.vendorInterest.update({
     where: { id: parsed.data.vendorInterestId },
     data: { status: "SENT", draftMessage: parsed.data.finalMessage },
   });
+
+  // Light one-way nudge (Decision 1): sending a real enquiry is real
+  // progress, but never overrides a couple's own further-along status
+  // (e.g. they're already NEGOTIATING off-app) — only bumps from the
+  // untouched default.
+  if (updated.bookingProgress === "NOT_CONTACTED") {
+    await setVendorBookingProgress(input.weddingPlanId, input.vendorId, "ENQUIRY_SENT");
+  }
 
   revalidatePath(`/vendors/${input.vendorId}`);
   return { ok: true };
@@ -130,10 +139,24 @@ export async function approveQuote(input: {
   if (!gate.allowed) return { ok: false, error: gate.upgradeReason };
 
   await prisma.vendorInterest.update({ where: { id: input.vendorInterestId }, data: { status: "ACCEPTED" } });
+
+  // Light one-way nudge (Decision 1): an approved quote is about as
+  // authoritative a real-world booking signal as exists, so this bumps
+  // bookingProgress to BOOKED unconditionally, through the same
+  // one-per-category flow the manual "mark Booked" UI uses.
+  // confirmReplace: true because there's no dialog available at this
+  // call site to negotiate a conflict — the couple already confirmed
+  // via this action's own confirm() dialog.
+  await setVendorBookingProgress(input.weddingPlanId, input.vendorId, "BOOKED", { confirmReplace: true });
+
   revalidatePath(`/vendors/${input.vendorId}`);
   return { ok: true };
 }
 
+// declineQuote deliberately does NOT touch bookingProgress — declining
+// one vendor's quote doesn't mean the couple gave up on the category
+// (they may be talking to others); leaving bookingProgress untouched is
+// safer than guessing NOT_SELECTED (see the schema's own comment on this).
 export async function declineQuote(input: {
   vendorInterestId: string;
   weddingPlanId: string;

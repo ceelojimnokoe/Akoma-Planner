@@ -15,9 +15,13 @@ import { getRemainingTone } from "@/lib/budget-tone";
 import { VALUE_TONE_CLASSES } from "@/components/dashboard/StatCard";
 
 export function BudgetCategoryRow({ category }: { category: BudgetCategorySummary }) {
-  const [allocated, setAllocated] = useState(String(category.allocatedGHS));
-  const [spent, setSpent] = useState(String(category.spentGHS));
+  // Untouched default rows start at 0 — show blank-with-placeholder
+  // rather than a literal "0" so an unset category reads as unset, not
+  // as a real zero allocation the couple deliberately chose.
+  const [allocated, setAllocated] = useState(category.allocatedGHS === 0 ? "" : String(category.allocatedGHS));
+  const [spent, setSpent] = useState(category.spentGHS === 0 ? "" : String(category.spentGHS));
   const [isPending, startTransition] = useTransition();
+  const isUnset = category.allocatedGHS === 0 && category.spentGHS === 0;
 
   function saveAllocated() {
     const value = Number(allocated);
@@ -46,7 +50,9 @@ export function BudgetCategoryRow({ category }: { category: BudgetCategorySummar
     <tr className={isPending ? "opacity-50" : undefined}>
       <td className="py-3 pr-4">
         <p className="text-sm font-medium text-akoma-ink">{category.name}</p>
-        <p className="text-xs text-akoma-ink/50">{category.percentOfTotalBudget.toFixed(1)}% of total budget</p>
+        {category.allocatedGHS !== 0 && (
+          <p className="text-xs text-akoma-ink/50">{category.percentOfTotalBudget.toFixed(1)}% of total budget</p>
+        )}
       </td>
       <td className="py-3 pr-4">
         <MoneyInput value={allocated} onChange={setAllocated} onBlur={saveAllocated} />
@@ -55,15 +61,21 @@ export function BudgetCategoryRow({ category }: { category: BudgetCategorySummar
         <MoneyInput value={spent} onChange={setSpent} onBlur={saveSpent} />
       </td>
       <td className="py-3 pr-4 text-sm">
-        <span
-          className={clsx(
-            VALUE_TONE_CLASSES[getRemainingTone(category.spentGHS, category.remainingInCategory)],
-            category.isOverBudget && "font-medium"
-          )}
-        >
-          {formatGHS(category.remainingInCategory)}
-        </span>
-        {category.isOverBudget && <span className="ml-1 text-xs text-akoma-terracotta">over</span>}
+        {isUnset ? (
+          <span className="text-akoma-ink/40">—</span>
+        ) : (
+          <>
+            <span
+              className={clsx(
+                VALUE_TONE_CLASSES[getRemainingTone(category.spentGHS, category.remainingInCategory)],
+                category.isOverBudget && "font-medium"
+              )}
+            >
+              {formatGHS(category.remainingInCategory)}
+            </span>
+            {category.isOverBudget && <span className="ml-1 text-xs text-akoma-terracotta">over</span>}
+          </>
+        )}
       </td>
       <td className="py-3 text-right">
         <button
@@ -94,6 +106,7 @@ function MoneyInput({
         type="number"
         min={0}
         value={value}
+        placeholder="—"
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
         className="w-28 rounded-md border border-akoma-ink/15 px-2 py-1 text-sm focus:border-akoma-green focus:outline-none focus:ring-1 focus:ring-akoma-green"

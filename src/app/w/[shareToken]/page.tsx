@@ -5,8 +5,9 @@
 // purely celebratory 3-stat card into something a planner can actually
 // coordinate from: venue, a simplified timeline, budget *allocations*
 // (deliberately never spent/total/percent — see below), vendor booking
-// status plus contact info for vendors the couple has actually accepted,
-// checklist progress plus upcoming deadlines, and an RSVP breakdown.
+// status (current vendor + real 7-value progress per category) plus
+// contact info for vendors actually Booked, checklist progress plus
+// upcoming deadlines, and an RSVP breakdown.
 //
 // Still deliberately curated, not a mirror of the private dashboard.
 // Never shown here: any User email/login info, Payment records,
@@ -14,10 +15,10 @@
 // personal account settings. Budget is allocations only — no
 // totalBudgetGHS, spentGHS, or percentSpent anywhere on this page, so a
 // planner sees "what's budgeted for catering" without seeing the
-// couple's overall financial position. This is a real shift from the
-// old promise ("not budget or guest information") — it's exactly what
-// was asked for, just worth being honest about in the footer text below
-// rather than silently changing what a previously-shared link now shows.
+// couple's overall financial position. Vendor contacts are shown only
+// for a real Booked vendor (VendorBookingProgress, not the narrower
+// in-app VendorInterestStatus artifact — booking can happen entirely
+// off-app, see prisma/schema.prisma's VendorBookingProgress comment).
 
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -26,39 +27,24 @@ import { calculateGuestStats } from "@/lib/guests";
 import { formatGHS } from "@/lib/currency";
 import { generateTimeline } from "@/lib/bisaai";
 import { ONBOARDING_VENDOR_CATEGORIES } from "@/lib/validation/wedding";
+import { VENDOR_PROGRESS_LABEL, VENDOR_PROGRESS_TONE, pickMostAdvancedInterest } from "@/lib/vendor-booking-progress";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
-
-const VENDOR_STATUS_LABEL: Record<string, string> = {
-  BOOKED: "Booked",
-  RESEARCHING: "Researching",
-  NOT_STARTED: "Not started",
-};
-
-const VENDOR_STATUS_TONE: Record<string, "green" | "gold" | "neutral"> = {
-  BOOKED: "green",
-  RESEARCHING: "gold",
-  NOT_STARTED: "neutral",
-};
+import type { OnboardingVendorCategory } from "@prisma/client";
 
 export default async function SharedWeddingPage({ params }: { params: Promise<{ shareToken: string }> }) {
   const { shareToken } = await params;
   const weddingPlan = await prisma.weddingPlan.findUnique({ where: { shareToken } });
   if (!weddingPlan) notFound();
 
-  const [checklistItems, guests, coupleProfile, budgetCategories, vendorBookingStatuses, acceptedInterests, savedTimeline] =
-    await Promise.all([
-      prisma.checklistItem.findMany({ where: { weddingPlanId: weddingPlan.id } }),
-      prisma.guest.findMany({ where: { weddingPlanId: weddingPlan.id } }),
-      prisma.coupleProfile.findUnique({ where: { weddingPlanId: weddingPlan.id } }),
-      prisma.budgetCategory.findMany({ where: { weddingPlanId: weddingPlan.id }, orderBy: { createdAt: "asc" } }),
-      prisma.vendorBookingStatus.findMany({ where: { weddingPlanId: weddingPlan.id } }),
-      prisma.vendorInterest.findMany({
-        where: { weddingPlanId: weddingPlan.id, status: "ACCEPTED" },
-        include: { vendor: true },
-      }),
-      prisma.timelineEntry.findMany({ where: { weddingPlanId: weddingPlan.id }, orderBy: { sortOrder: "asc" } }),
-    ]);
+  const [checklistItems, guests, coupleProfile, budgetCategories, vendorInterests, savedTimeline] = await Promise.all([
+    prisma.checklistItem.findMany({ where: { weddingPlanId: weddingPlan.id } }),
+    prisma.guest.findMany({ where: { weddingPlanId: weddingPlan.id } }),
+    prisma.coupleProfile.findUnique({ where: { weddingPlanId: weddingPlan.id } }),
+    prisma.budgetCategory.findMany({ where: { weddingPlanId: weddingPlan.id }, orderBy: { createdAt: "asc" } }),
+    prisma.vendorInterest.findMany({ where: { weddingPlanId: weddingPlan.id }, include: { vendor: true } }),
+    prisma.timelineEntry.findMany({ where: { weddingPlanId: weddingPlan.id }, orderBy: { sortOrder: "asc" } }),
+  ]);
 
   const doneCount = checklistItems.filter((i) => i.done).length;
   const checklistPercent = checklistItems.length ? Math.round((doneCount / checklistItems.length) * 100) : 0;
@@ -79,7 +65,17 @@ export default async function SharedWeddingPage({ params }: { params: Promise<{ 
       ? savedTimeline
       : await generateTimeline({ weddingPlanId: weddingPlan.id, startTime: "09:00" }).then((r) => (r.ok ? r.data.entries : []));
 
-  const bookedCount = vendorBookingStatuses.filter((s) => s.status === "BOOKED").length;
+  const interestsByCategory = new Map<OnboardingVendorCategory, typeof vendorInterests>();
+  for (const interest of vendorInterests) {
+    if (!interest.onboardingCategory) continue;
+    const list = interestsByCategory.get(interest.onboardingCategory) ?? [];
+    list.push(interest);
+    interestsByCategory.set(interest.onboardingCategory, list);
+  }
+  const bookedCount = ONBOARDING_VENDOR_CATEGORIES.filter((c) =>
+    (interestsByCategory.get(c.value as OnboardingVendorCategory) ?? []).some((i) => i.bookingProgress === "BOOKED")
+  ).length;
+  const bookedInterests = vendorInterests.filter((i) => i.bookingProgress === "BOOKED");
 
   return (
     <div className="mx-auto min-h-screen max-w-3xl space-y-6 bg-akoma-cream px-6 py-16">
@@ -96,7 +92,7 @@ export default async function SharedWeddingPage({ params }: { params: Promise<{ 
         <div className="mt-8 grid grid-cols-3 gap-4 border-t border-akoma-ink/10 pt-6">
           <Stat label="Countdown" value={days >= 0 ? `${days}d` : "🎉"} />
           <Stat label="Checklist progress" value={`${checklistPercent}%`} />
-          <Stat label="Vendors booked" value={`${bookedCount}/${vendorBookingStatuses.length}`} />
+          <Stat label="Vendors booked" value={`${bookedCount}/${ONBOARDING_VENDOR_CATEGORIES.length}`} />
         </div>
       </div>
 
@@ -138,39 +134,45 @@ export default async function SharedWeddingPage({ params }: { params: Promise<{ 
         </Card>
       )}
 
-      {vendorBookingStatuses.length > 0 && (
-        <Card>
-          <h2 className="mb-3 font-semibold text-akoma-ink">Vendor status</h2>
-          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {vendorBookingStatuses.map((s) => {
-              const label = ONBOARDING_VENDOR_CATEGORIES.find((c) => c.value === s.category)?.label ?? s.category;
-              return (
-                <li key={s.id} className="flex flex-col gap-1.5 rounded-lg border border-akoma-ink/10 px-2.5 py-1.5">
-                  <span className="truncate text-xs text-akoma-ink/80">{label}</span>
-                  <Badge tone={VENDOR_STATUS_TONE[s.status]} className="self-start">
-                    {VENDOR_STATUS_LABEL[s.status]}
-                  </Badge>
-                </li>
-              );
-            })}
-          </ul>
+      <Card>
+        <h2 className="mb-3 font-semibold text-akoma-ink">Vendor status</h2>
+        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {ONBOARDING_VENDOR_CATEGORIES.map((c) => {
+            const current = pickMostAdvancedInterest(interestsByCategory.get(c.value as OnboardingVendorCategory) ?? []);
+            const progress = current?.bookingProgress ?? "NOT_CONTACTED";
+            return (
+              <li key={c.value} className="flex flex-col gap-1 rounded-lg border border-akoma-ink/10 px-2.5 py-1.5">
+                <span className="truncate text-xs text-akoma-ink/80" title={c.label}>
+                  {c.label}
+                </span>
+                {current && (
+                  <span className="truncate text-xs text-akoma-ink/50" title={current.vendor.name}>
+                    {current.vendor.name}
+                  </span>
+                )}
+                <Badge tone={VENDOR_PROGRESS_TONE[progress]} className="self-start">
+                  {VENDOR_PROGRESS_LABEL[progress]}
+                </Badge>
+              </li>
+            );
+          })}
+        </ul>
 
-          {acceptedInterests.length > 0 && (
-            <div className="mt-4 border-t border-akoma-ink/10 pt-4">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-akoma-ink/40">Booked vendor contacts</p>
-              <ul className="space-y-2">
-                {acceptedInterests.map((interest) => (
-                  <li key={interest.id} className="text-sm">
-                    <span className="font-medium text-akoma-ink">{interest.vendor.name}</span>
-                    {interest.vendor.contactPhone && <span className="text-akoma-ink/60"> · {interest.vendor.contactPhone}</span>}
-                    {interest.vendor.contactEmail && <span className="text-akoma-ink/60"> · {interest.vendor.contactEmail}</span>}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </Card>
-      )}
+        {bookedInterests.length > 0 && (
+          <div className="mt-4 border-t border-akoma-ink/10 pt-4">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-akoma-ink/40">Booked vendor contacts</p>
+            <ul className="space-y-2">
+              {bookedInterests.map((interest) => (
+                <li key={interest.id} className="text-sm">
+                  <span className="font-medium text-akoma-ink">{interest.vendor.name}</span>
+                  {interest.vendor.contactPhone && <span className="text-akoma-ink/60"> · {interest.vendor.contactPhone}</span>}
+                  {interest.vendor.contactEmail && <span className="text-akoma-ink/60"> · {interest.vendor.contactEmail}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </Card>
 
       {timeline.length > 0 && (
         <Card>

@@ -15,7 +15,15 @@ import { prisma } from "./prisma";
 import { calculateBudgetSummary, type BudgetSummary } from "./budget";
 import { calculateGuestStats, type GuestStats } from "./guests";
 import { daysUntil } from "./dates";
-import type { BookingStatus, OnboardingVendorCategory } from "@prisma/client";
+import type { BookingStatus, OnboardingVendorCategory, VendorBookingProgress, VendorCategory } from "@prisma/client";
+
+export interface VendorInterestSummary {
+  vendorName: string;
+  vendorCategory: VendorCategory;
+  onboardingCategory: OnboardingVendorCategory | null;
+  bookingProgress: VendorBookingProgress;
+  priceLowGHS: number;
+}
 
 export interface WeddingContext {
   weddingDate: Date;
@@ -34,6 +42,12 @@ export interface WeddingContext {
     bookedCount: number;
     totalCount: number;
     byCategory: Partial<Record<OnboardingVendorCategory, BookingStatus>>;
+    /** Every vendor the couple has any real-world progress with,
+     *  regardless of category — the richer signal
+     *  generateProactiveSuggestions uses for status- and budget-aware
+     *  nudges. byCategory above stays the coarser 3-value view every
+     *  other existing read site already expects. */
+    interests: VendorInterestSummary[];
   };
   style: {
     theme: string | null;
@@ -45,13 +59,14 @@ export interface WeddingContext {
 }
 
 export async function getWeddingContext(weddingPlanId: string): Promise<WeddingContext> {
-  const [weddingPlan, budgetCategories, checklistItems, guests, vendorBookingStatuses, coupleProfile] =
+  const [weddingPlan, budgetCategories, checklistItems, guests, vendorBookingStatuses, vendorInterests, coupleProfile] =
     await Promise.all([
       prisma.weddingPlan.findUniqueOrThrow({ where: { id: weddingPlanId } }),
       prisma.budgetCategory.findMany({ where: { weddingPlanId } }),
       prisma.checklistItem.findMany({ where: { weddingPlanId } }),
       prisma.guest.findMany({ where: { weddingPlanId } }),
       prisma.vendorBookingStatus.findMany({ where: { weddingPlanId } }),
+      prisma.vendorInterest.findMany({ where: { weddingPlanId }, include: { vendor: true } }),
       prisma.coupleProfile.findUnique({ where: { weddingPlanId } }),
     ]);
 
@@ -62,6 +77,14 @@ export async function getWeddingContext(weddingPlanId: string): Promise<WeddingC
 
   const byCategory: Partial<Record<OnboardingVendorCategory, BookingStatus>> = {};
   for (const v of vendorBookingStatuses) byCategory[v.category] = v.status;
+
+  const interests: VendorInterestSummary[] = vendorInterests.map((i) => ({
+    vendorName: i.vendor.name,
+    vendorCategory: i.vendor.category,
+    onboardingCategory: i.onboardingCategory,
+    bookingProgress: i.bookingProgress,
+    priceLowGHS: i.vendor.priceLowGHS,
+  }));
 
   return {
     weddingDate: weddingPlan.weddingDate,
@@ -80,6 +103,7 @@ export async function getWeddingContext(weddingPlanId: string): Promise<WeddingC
       bookedCount: vendorBookingStatuses.filter((v) => v.status === "BOOKED").length,
       totalCount: vendorBookingStatuses.length,
       byCategory,
+      interests,
     },
     style: {
       theme: coupleProfile?.theme ?? null,

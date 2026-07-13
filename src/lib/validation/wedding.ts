@@ -27,6 +27,30 @@ function optionalEnum<T extends [string, ...string[]]>(values: T) {
 // case is just "" (the field left untouched / cleared).
 const optionalHexColor = z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/, "Enter a valid color")]).optional();
 
+// The app's 14 standardized primary vendor categories the Vendor Status
+// step asks about — a separate list from the real Vendor catalog's
+// categories, see schema.prisma's OnboardingVendorCategory comment for
+// why. Declared here (above onboardingSchema) so the vendorStatus field
+// below can derive its enum from this array instead of hand-duplicating
+// the value list a second time.
+export const ONBOARDING_VENDOR_CATEGORIES: Array<{ value: string; label: string }> = [
+  { value: "VENUE", label: "Venue" },
+  { value: "CATERER", label: "Catering" },
+  { value: "PHOTOGRAPHER", label: "Photography" },
+  { value: "VIDEOGRAPHER", label: "Videography" },
+  { value: "DECOR", label: "Decoration" },
+  { value: "PLANNER", label: "Wedding Planner / Coordinator" },
+  { value: "DJ_BAND", label: "Entertainment / DJ" },
+  { value: "MC", label: "Master of Ceremonies (MC)" },
+  { value: "BRIDAL_WEAR", label: "Bridal Wear" },
+  { value: "GROOMS_WEAR", label: "Groom's Wear" },
+  { value: "MAKEUP", label: "Hair & Makeup" },
+  { value: "JEWELLERY", label: "Jewellery" },
+  { value: "CAKE", label: "Cake" },
+  { value: "TRANSPORTATION", label: "Transportation" },
+];
+const ONBOARDING_VENDOR_CATEGORY_VALUES = ONBOARDING_VENDOR_CATEGORIES.map((c) => c.value) as [string, ...string[]];
+
 export const onboardingSchema = z.object({
   // --- Wedding Details (core — maps onto WeddingPlan, required) ---
   coupleNames: z.string().trim().min(2, 'Enter both names, e.g. "Ama & Kwame"').max(100),
@@ -77,23 +101,7 @@ export const onboardingSchema = z.object({
   communicationStyle: optionalEnum(["DETAILED_EXPLANATIONS", "QUICK_SUMMARIES", "WEEKLY_CHECK_IN"]),
 
   // --- Vendor status: one entry per category (see ONBOARDING_VENDOR_CATEGORIES) ---
-  vendorStatus: z.record(
-    z.enum([
-      "VENUE",
-      "PHOTOGRAPHER",
-      "VIDEOGRAPHER",
-      "CATERER",
-      "DJ_BAND",
-      "MC",
-      "DECOR",
-      "FLORIST",
-      "MAKEUP",
-      "HAIR",
-      "CAKE",
-      "TRANSPORTATION",
-    ]),
-    z.enum(["NOT_STARTED", "RESEARCHING", "BOOKED"])
-  ),
+  vendorStatus: z.record(z.enum(ONBOARDING_VENDOR_CATEGORY_VALUES), z.enum(["NOT_STARTED", "RESEARCHING", "BOOKED"])),
 
   // --- Relationship ---
   proposalDate: optionalText(20),
@@ -107,21 +115,3 @@ export const onboardingSchema = z.object({
 });
 
 export type OnboardingInput = z.infer<typeof onboardingSchema>;
-
-// The 12 categories the Vendor Status step asks about — a separate list
-// from the real Vendor catalog's categories, see schema.prisma's
-// OnboardingVendorCategory comment for why.
-export const ONBOARDING_VENDOR_CATEGORIES: Array<{ value: string; label: string }> = [
-  { value: "VENUE", label: "Venue" },
-  { value: "PHOTOGRAPHER", label: "Photographer" },
-  { value: "VIDEOGRAPHER", label: "Videographer" },
-  { value: "CATERER", label: "Caterer" },
-  { value: "DJ_BAND", label: "DJ / Band" },
-  { value: "MC", label: "MC" },
-  { value: "DECOR", label: "Decor" },
-  { value: "FLORIST", label: "Florist" },
-  { value: "MAKEUP", label: "Makeup" },
-  { value: "HAIR", label: "Hair" },
-  { value: "CAKE", label: "Cake" },
-  { value: "TRANSPORTATION", label: "Transportation" },
-];

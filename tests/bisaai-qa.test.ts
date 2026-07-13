@@ -34,7 +34,7 @@ function buildContext(overrides: Partial<WeddingContext> = {}): WeddingContext {
       declinedAttendees: 10,
     },
     checklist: { percent: 50, doneCount: 10, totalCount: 20, overdueCount: 0, upcomingCount: 10 },
-    vendors: { bookedCount: 5, totalCount: 12, byCategory: {} },
+    vendors: { bookedCount: 5, totalCount: 12, byCategory: {}, interests: [] },
     style: { theme: null, primaryColor: null, secondaryColor: null, venueName: null, tradition: "Akan" },
     ...overrides,
   };
@@ -113,10 +113,18 @@ describe("generateProactiveSuggestions", () => {
     expect(over.some((s) => s.id === "budget-high")).toBe(false);
   });
 
-  it("flags an unbooked critical vendor category inside 10 weeks", () => {
+  it("flags a critical vendor category with zero real progress inside 10 weeks", () => {
     const ctx = buildContext({
       daysUntil: 50,
-      vendors: { bookedCount: 2, totalCount: 12, byCategory: { VENUE: "BOOKED", CATERER: "BOOKED", PHOTOGRAPHER: "NOT_STARTED" } },
+      vendors: {
+        bookedCount: 2,
+        totalCount: 12,
+        byCategory: { VENUE: "BOOKED", CATERER: "BOOKED", PHOTOGRAPHER: "NOT_STARTED" },
+        interests: [
+          { vendorName: "Test Venue Co", vendorCategory: "VENUE", onboardingCategory: "VENUE", bookingProgress: "BOOKED", priceLowGHS: 10000 },
+          { vendorName: "Test Caterer Co", vendorCategory: "CATERING", onboardingCategory: "CATERER", bookingProgress: "BOOKED", priceLowGHS: 5000 },
+        ],
+      },
     });
     const suggestions = generateProactiveSuggestions(ctx);
     const suggestion = suggestions.find((s) => s.id === "vendor-unbooked-urgent");
