@@ -26,6 +26,8 @@ import {
   OnboardingVendorCategory,
 } from "@prisma/client";
 import { buildDefaultChecklist, ONBOARDING_CATEGORY_CHECKLIST_TITLES } from "../src/lib/checklist-defaults";
+import { buildDefaultHoneymoonChecklist } from "../src/lib/honeymoon-defaults";
+import { buildDefaultTraditionalCeremonyItems, resolveTraditionalCeremonyCatalogCity } from "../src/lib/traditional-ceremony-defaults";
 import { deriveCategoryBookingStatus } from "../src/lib/vendor-booking-progress";
 import { DEMO_USER_EMAIL, DEMO_USER_PASSWORD, TEST_PASS_USER_EMAIL, TEST_PASS_USER_PASSWORD } from "../src/lib/session";
 import { WEDDING_PASS_AMOUNT_GHS } from "../src/lib/pricing";
@@ -512,6 +514,8 @@ async function seedSampleWedding(vendors: Awaited<ReturnType<typeof seedVendors>
   await seedGuests(weddingPlan.id);
   const touchedCategories = await seedVendorInterests(weddingPlan.id, vendors);
   await syncSeededVendorBooking(weddingPlan.id, touchedCategories);
+  await seedTraditionalCeremonyItems(weddingPlan.id);
+  await seedHoneymoonPlan(weddingPlan.id);
   await seedAiLogs(weddingPlan.id);
 
   console.log(`  seeded wedding plan "${weddingPlan.coupleNames}" (${weddingPlan.id})`);
@@ -538,6 +542,11 @@ async function seedBudgetCategories(weddingPlanId: string) {
     { name: "Cake", allocatedGHS: 2000, spentGHS: 0 },
     { name: "Transportation", allocatedGHS: 5000, spentGHS: 0 },
     { name: "Accommodation", allocatedGHS: 7000, spentGHS: 1500 },
+    // spentGHS here matches the sum of seedTraditionalCeremonyItems' own
+    // spentGHS values below — the real sync action derives this
+    // automatically on every mutation, but the seed script writes both
+    // sides by hand since it doesn't go through that action.
+    { name: "Traditional Customary", allocatedGHS: 25000, spentGHS: 12350 },
   ];
 
   await prisma.budgetCategory.createMany({
@@ -733,6 +742,52 @@ async function syncSeededVendorBooking(weddingPlanId: string, categories: Onboar
   }
 }
 
+async function seedTraditionalCeremonyItems(weddingPlanId: string) {
+  // spentGHS values here sum to 12350 — matches seedBudgetCategories'
+  // "Traditional Customary" spentGHS by hand (the real sync action would
+  // derive this automatically on every mutation; the seed script writes
+  // both sides itself since it never calls that action).
+  const items = [
+    { name: "Schnapps (bottle, for libation)", category: "Drinks", allocatedGHS: 150, spentGHS: 150, done: true },
+    { name: "Kente cloth for the groom's family", category: "Kente & Cloth", allocatedGHS: 3000, spentGHS: 3000, done: true },
+    { name: "Suitcase of provisions for the bride's family", category: "Gifts for the Family", allocatedGHS: 1500, spentGHS: 0, done: false },
+    { name: "\"Tiri nsa\" (head drink acknowledgement)", category: "Money (Customary)", allocatedGHS: 1200, spentGHS: 1200, done: true },
+    { name: "Engagement ring", category: "Jewelry", allocatedGHS: 8000, spentGHS: 8000, done: true },
+    { name: "Beads set for the bride", category: "Jewelry", allocatedGHS: 600, spentGHS: 0, done: false },
+    { name: "Bible and ring box set", category: "Gifts for the Family", allocatedGHS: 300, spentGHS: 0, done: false },
+    { name: "Cloth (piece) for the bride's mother", category: "Kente & Cloth", allocatedGHS: 600, spentGHS: 0, done: false },
+  ];
+
+  await prisma.traditionalCeremonyItem.createMany({
+    data: items.map((i) => ({ ...i, weddingPlanId, isDefault: false })),
+  });
+}
+
+async function seedHoneymoonPlan(weddingPlanId: string) {
+  await prisma.honeymoonPlan.create({
+    data: {
+      weddingPlanId,
+      destination: "Cape Coast",
+      styles: "Relaxation, Cultural Experience",
+      allocatedGHS: 15000,
+      spentGHS: 3000,
+    },
+  });
+
+  // seedSampleWedding's own weddingPlan.create() call is a separate,
+  // hand-rolled create (not the real createWeddingPlan action), so it
+  // doesn't get the honeymoonChecklistItems nested block that action
+  // adds for real signups — seed those defaults explicitly here instead.
+  const doneTitles = new Set(["Decide destination", "Set honeymoon budget"]);
+  await prisma.honeymoonChecklistItem.createMany({
+    data: buildDefaultHoneymoonChecklist().map((item) => ({
+      ...item,
+      weddingPlanId,
+      done: doneTitles.has(item.title),
+    })),
+  });
+}
+
 async function seedAiLogs(weddingPlanId: string) {
   const logs = [
     { functionName: "basicQA", inputSummary: "\"What's a good order of events for an Akan traditional wedding?\"", outputSummary: "Suggested a typical running order: family arrival, linguist introductions, bride price presentation, blessing, reception." },
@@ -812,6 +867,20 @@ async function seedTestPassWedding() {
       isDefault: item.isDefault,
       priority: item.priority,
     })),
+  });
+
+  // Same structural defaults every real signup gets via createWeddingPlan
+  // (not curated demo content) — this account is "deliberately lean," but
+  // that means no rich hand-picked data, not missing the same day-one
+  // rows a real Pass account would have.
+  const traditionalCatalogItems = await prisma.traditionalListItem.findMany({
+    where: { city: resolveTraditionalCeremonyCatalogCity(weddingPlan.city) },
+  });
+  await prisma.traditionalCeremonyItem.createMany({
+    data: buildDefaultTraditionalCeremonyItems(traditionalCatalogItems).map((item) => ({ ...item, weddingPlanId: weddingPlan.id })),
+  });
+  await prisma.honeymoonChecklistItem.createMany({
+    data: buildDefaultHoneymoonChecklist().map((item) => ({ ...item, weddingPlanId: weddingPlan.id })),
   });
 
   const guestData: Array<{ name: string; side: Side; rsvpStatus: RsvpStatus; plusOne?: boolean }> = [

@@ -56,19 +56,41 @@ export interface WeddingContext {
     venueName: string | null;
     tradition: string;
   };
+  traditionalCeremony: {
+    itemsDone: number;
+    itemsTotal: number;
+    spentGHS: number;
+    allocatedGHS: number;
+  };
+  honeymoon: {
+    isSetUp: boolean;
+    allocatedGHS: number;
+    spentGHS: number;
+  };
 }
 
 export async function getWeddingContext(weddingPlanId: string): Promise<WeddingContext> {
-  const [weddingPlan, budgetCategories, checklistItems, guests, vendorBookingStatuses, vendorInterests, coupleProfile] =
-    await Promise.all([
-      prisma.weddingPlan.findUniqueOrThrow({ where: { id: weddingPlanId } }),
-      prisma.budgetCategory.findMany({ where: { weddingPlanId } }),
-      prisma.checklistItem.findMany({ where: { weddingPlanId } }),
-      prisma.guest.findMany({ where: { weddingPlanId } }),
-      prisma.vendorBookingStatus.findMany({ where: { weddingPlanId } }),
-      prisma.vendorInterest.findMany({ where: { weddingPlanId }, include: { vendor: true } }),
-      prisma.coupleProfile.findUnique({ where: { weddingPlanId } }),
-    ]);
+  const [
+    weddingPlan,
+    budgetCategories,
+    checklistItems,
+    guests,
+    vendorBookingStatuses,
+    vendorInterests,
+    coupleProfile,
+    traditionalCeremonyItems,
+    honeymoonPlan,
+  ] = await Promise.all([
+    prisma.weddingPlan.findUniqueOrThrow({ where: { id: weddingPlanId } }),
+    prisma.budgetCategory.findMany({ where: { weddingPlanId } }),
+    prisma.checklistItem.findMany({ where: { weddingPlanId } }),
+    prisma.guest.findMany({ where: { weddingPlanId } }),
+    prisma.vendorBookingStatus.findMany({ where: { weddingPlanId } }),
+    prisma.vendorInterest.findMany({ where: { weddingPlanId }, include: { vendor: true } }),
+    prisma.coupleProfile.findUnique({ where: { weddingPlanId } }),
+    prisma.traditionalCeremonyItem.findMany({ where: { weddingPlanId } }),
+    prisma.honeymoonPlan.findUnique({ where: { weddingPlanId } }),
+  ]);
 
   const now = new Date();
   const doneCount = checklistItems.filter((i) => i.done).length;
@@ -111,6 +133,17 @@ export async function getWeddingContext(weddingPlanId: string): Promise<WeddingC
       secondaryColor: coupleProfile?.secondaryColor ?? null,
       venueName: coupleProfile?.venueName ?? null,
       tradition: weddingPlan.tradition,
+    },
+    traditionalCeremony: {
+      itemsDone: traditionalCeremonyItems.filter((i) => i.done).length,
+      itemsTotal: traditionalCeremonyItems.length,
+      spentGHS: traditionalCeremonyItems.reduce((sum, i) => sum + i.spentGHS, 0),
+      allocatedGHS: traditionalCeremonyItems.reduce((sum, i) => sum + i.allocatedGHS, 0),
+    },
+    honeymoon: {
+      isSetUp: honeymoonPlan != null,
+      allocatedGHS: honeymoonPlan?.allocatedGHS ?? 0,
+      spentGHS: honeymoonPlan?.spentGHS ?? 0,
     },
   };
 }

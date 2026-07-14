@@ -229,7 +229,7 @@ describe("getHealthScoreSummary", () => {
     const healthy = getHealthScoreSummary(buildResult({ budget: { score: 75, label: "On track" } }), {
       unbookedCategoryLabels: [],
     });
-    expect(healthy.completed).toContain("Budget is healthy");
+    expect(healthy.completed).toContain("Budget is currently healthy");
 
     const unhealthy = getHealthScoreSummary(buildResult({ budget: { score: 50, label: "Watch spending" } }), {
       unbookedCategoryLabels: [],
@@ -237,11 +237,11 @@ describe("getHealthScoreSummary", () => {
     expect(unhealthy.improve).toContain("Review your budget — Watch spending");
   });
 
-  it("flags a behind-schedule timeline as improve, everything else as completed", () => {
+  it("flags a behind-schedule timeline as a checklist-focused improve bullet, everything else as completed", () => {
     const behind = getHealthScoreSummary(buildResult({ timeline: { score: 30, label: "Behind schedule" } }), {
       unbookedCategoryLabels: [],
     });
-    expect(behind.improve.some((line) => line.includes("behind schedule"))).toBe(true);
+    expect(behind.improve).toContain("Complete outstanding checklist items");
 
     const onPace = getHealthScoreSummary(buildResult({ timeline: { score: 75, label: "On pace" } }), {
       unbookedCategoryLabels: [],
@@ -249,16 +249,27 @@ describe("getHealthScoreSummary", () => {
     expect(onPace.completed).toContain("Timeline is on pace");
   });
 
-  it("credits most RSVPs received as completed at or above the 70-score threshold, else asks to follow up", () => {
+  it("credits good RSVP standing as completed with the real percentage, at or above the 70-score threshold, else asks to follow up", () => {
     const good = getHealthScoreSummary(buildResult({ guests: { score: 70, label: "70% confirmed" } }), {
       unbookedCategoryLabels: [],
     });
-    expect(good.completed).toContain("Most RSVP responses received");
+    expect(good.completed).toContain("70% confirmed");
 
     const poor = getHealthScoreSummary(buildResult({ guests: { score: 40, label: "40% confirmed" } }), {
       unbookedCategoryLabels: [],
     });
-    expect(poor.improve).toContain("Follow up with pending RSVPs");
+    expect(poor.improve).toContain("Follow up with pending guests");
+  });
+
+  it("names a booked critical category as a specific 'secured' completed bullet when provided", () => {
+    const withBooked = getHealthScoreSummary(buildResult(), {
+      unbookedCategoryLabels: [],
+      bookedCriticalCategoryLabel: "Venue",
+    });
+    expect(withBooked.completed).toContain("Venue secured");
+
+    const withoutBooked = getHealthScoreSummary(buildResult(), { unbookedCategoryLabels: [] });
+    expect(withoutBooked.completed.some((line) => line.endsWith("secured"))).toBe(false);
   });
 
   it("caps the improve list so a badly-off wedding doesn't get an overwhelming wall of bullets", () => {

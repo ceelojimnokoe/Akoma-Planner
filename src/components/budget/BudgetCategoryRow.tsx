@@ -14,7 +14,19 @@ import { formatGHS } from "@/lib/currency";
 import { getRemainingTone } from "@/lib/budget-tone";
 import { VALUE_TONE_CLASSES } from "@/components/dashboard/StatCard";
 
-export function BudgetCategoryRow({ category }: { category: BudgetCategorySummary }) {
+export function BudgetCategoryRow({
+  category,
+  spentDerivedFrom,
+}: {
+  category: BudgetCategorySummary;
+  /** When set (e.g. "Traditional Ceremony"), this row's Spent cell is a
+   *  derived mirror of another feature's own tracked spending — rendered
+   *  read-only here instead of a live MoneyInput, so a manual edit on
+   *  this page can never get silently clobbered back by that feature's
+   *  own sync the next time it runs (see
+   *  server/actions/traditional-ceremony.ts's syncTraditionalCustomaryBudget). */
+  spentDerivedFrom?: string;
+}) {
   // Untouched default rows start at 0 — show blank-with-placeholder
   // rather than a literal "0" so an unset category reads as unset, not
   // as a real zero allocation the couple deliberately chose.
@@ -58,7 +70,14 @@ export function BudgetCategoryRow({ category }: { category: BudgetCategorySummar
         <MoneyInput value={allocated} onChange={setAllocated} onBlur={saveAllocated} />
       </td>
       <td className="py-3 pr-4">
-        <MoneyInput value={spent} onChange={setSpent} onBlur={saveSpent} />
+        {spentDerivedFrom ? (
+          <div>
+            <p className="text-sm text-akoma-ink">{formatGHS(category.spentGHS)}</p>
+            <p className="text-xs text-akoma-ink/40">synced from {spentDerivedFrom}</p>
+          </div>
+        ) : (
+          <MoneyInput value={spent} onChange={setSpent} onBlur={saveSpent} />
+        )}
       </td>
       <td className="py-3 pr-4 text-sm">
         {isUnset ? (

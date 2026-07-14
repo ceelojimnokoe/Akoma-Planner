@@ -200,18 +200,22 @@ model WeddingPlan {
   ownerUserId String
   owner       User   @relation("WeddingOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
 
-  members               WeddingMember[]
-  budgetCategories      BudgetCategory[]
-  checklistItems        ChecklistItem[]
-  guests                Guest[]
-  vendorInterests       VendorInterest[]
-  aiLogs                AIInteractionLog[]
-  coupleProfile         CoupleProfile?
-  vendorBookingStatuses VendorBookingStatus[]
-  notifications         Notification[]
-  payments              Payment[]
-  timelineEntries       TimelineEntry[]
-  seatingAssignments    SeatingAssignment[]
+  members                  WeddingMember[]
+  budgetCategories         BudgetCategory[]
+  checklistItems           ChecklistItem[]
+  guests                   Guest[]
+  vendorInterests          VendorInterest[]
+  aiLogs                   AIInteractionLog[]
+  coupleProfile            CoupleProfile?
+  vendorBookingStatuses    VendorBookingStatus[]
+  notifications            Notification[]
+  payments                 Payment[]
+  timelineEntries          TimelineEntry[]
+  seatingAssignments       SeatingAssignment[]
+  traditionalCeremonyItems TraditionalCeremonyItem[]
+  honeymoonPlan            HoneymoonPlan?
+  honeymoonChecklistItems  HoneymoonChecklistItem[]
+  documents                WeddingDocument[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -560,6 +564,28 @@ model TraditionalListItem {
 }
 
 // ---------------------------------------------------------------------------
+// Traditional Ceremony (per-couple, Pass feature) — the trackable workspace
+// TraditionalListItem above feeds as one-time seed data for. Deliberately a
+// separate model, not a rename: TraditionalListItem is global catalog data
+// with no acquired/spent concept at all; this is per-wedding, editable, and
+// syncs its aggregate spentGHS onto the "Traditional Customary"
+// BudgetCategory (see lib/budget-defaults.ts and
+// server/actions/traditional-ceremony.ts for the sync direction).
+model TraditionalCeremonyItem {
+  id            String      @id @default(cuid())
+  weddingPlanId String
+  weddingPlan   WeddingPlan @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
+  name          String
+  category      String
+  allocatedGHS  Float       @default(0)
+  spentGHS      Float       @default(0)
+  done          Boolean     @default(false)
+  isDefault     Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+// ---------------------------------------------------------------------------
 // Accommodation (global reference data, linked loosely to a nearby vendor
 // venue for "distance from venue" context)
 // ---------------------------------------------------------------------------
@@ -693,4 +719,60 @@ model SeatingAssignment {
   guest         Guest       @relation(fields: [guestId], references: [id], onDelete: Cascade)
   tableNumber   Int
   updatedAt     DateTime    @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Honeymoon Planner (Pass feature) — deliberately standalone from the main
+// wedding budget/checklist. One HoneymoonPlan per wedding (destination,
+// style, its own budget); a small fixed default checklist seeded once at
+// createWeddingPlan time, same as ChecklistItem's own default template.
+// ---------------------------------------------------------------------------
+
+model HoneymoonPlan {
+  id            String      @id @default(cuid())
+  weddingPlanId String      @unique
+  weddingPlan   WeddingPlan @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
+  destination   String? // Ghana-preset region name or free-text international destination
+  styles        String // comma-separated (SQLite has no array type) — same precedent as Accommodation.amenities
+  allocatedGHS  Float       @default(0)
+  spentGHS      Float       @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model HoneymoonChecklistItem {
+  id            String      @id @default(cuid())
+  weddingPlanId String
+  weddingPlan   WeddingPlan @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
+  title         String
+  done          Boolean     @default(false)
+  isDefault     Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Documents Vault (Pass feature) — stores an object path in Supabase
+// Storage, not a durable public URL, since these can be sensitive
+// (contracts, receipts). See lib/supabase/storage.ts for why this needs a
+// service-role client rather than the regular per-request Supabase client.
+// ---------------------------------------------------------------------------
+
+enum DocumentCategory {
+  VENDORS
+  FINANCE
+  LEGAL
+  GUESTS
+  OTHER
+}
+
+model WeddingDocument {
+  id            String           @id @default(cuid())
+  weddingPlanId String
+  weddingPlan   WeddingPlan      @relation(fields: [weddingPlanId], references: [id], onDelete: Cascade)
+  name          String
+  category      DocumentCategory @default(OTHER)
+  storagePath   String
+  fileType      String
+  fileSizeBytes Int
+  createdAt     DateTime         @default(now())
 }

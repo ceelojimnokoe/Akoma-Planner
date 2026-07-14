@@ -15,14 +15,21 @@
 // number themselves" (see BudgetCategoryRow.tsx's "—" placeholder
 // treatment for zero-value rows).
 //
-// "Accommodation" is added as one more row alongside the 14 vendor
-// categories, even though it isn't one of them — app/(app)/accommodation
-// pages already look up a budget category literally named "Accommodation"
-// (lib/budget-fit.ts's matchBudgetCategoryByName), and dropping it would
-// silently regress that page's existing budget-fit badge for every new
-// wedding plan.
+// "Accommodation" and "Traditional Customary" are added alongside the 14
+// vendor categories, even though neither is one of them:
+// - app/(app)/accommodation pages already look up a budget category
+//   literally named "Accommodation" (lib/budget-fit.ts's
+//   matchBudgetCategoryByName), and dropping it would silently regress
+//   that page's existing budget-fit badge for every new wedding plan.
+// - "Traditional Customary" is the couple's overall envelope for the
+//   Traditional Ceremony feature (app/(app)/traditional-ceremony) — its
+//   allocatedGHS becomes that page's Total Budget, and its spentGHS is a
+//   derived mirror of that page's own tracked items (see
+//   server/actions/traditional-ceremony.ts). Same matchBudgetCategoryByName
+//   binding, same "no match, no crash" tolerance for a renamed category.
 
 import { ONBOARDING_VENDOR_CATEGORIES } from "./validation/wedding";
+import { TRADITIONAL_CUSTOMARY_BUDGET_NAME } from "./traditional-ceremony-defaults";
 
 export interface BuiltBudgetCategory {
   name: string;
@@ -31,7 +38,7 @@ export interface BuiltBudgetCategory {
 }
 
 export function buildDefaultBudgetCategories(): BuiltBudgetCategory[] {
-  return [...ONBOARDING_VENDOR_CATEGORIES.map((c) => c.label), "Accommodation"].map((name) => ({
+  return [...ONBOARDING_VENDOR_CATEGORIES.map((c) => c.label), "Accommodation", TRADITIONAL_CUSTOMARY_BUDGET_NAME].map((name) => ({
     name,
     allocatedGHS: 0,
     spentGHS: 0,

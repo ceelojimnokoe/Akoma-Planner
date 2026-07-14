@@ -111,14 +111,17 @@ export default async function DashboardPage() {
   const vendorsBookedCount = vendorBookingStatuses.filter((s) => s.status === "BOOKED").length;
 
   // Priority-ordered (critical categories first) list of unbooked
-  // category labels, for the Wedding Health Score tooltip's "Still to
-  // improve" bullets — see lib/wedding-health.ts's getHealthScoreSummary.
+  // category labels, for the Wedding Health Score modal's "Needs
+  // Attention" bullets — see lib/wedding-health.ts's getHealthScoreSummary.
   const bookedCategories = new Set<string>(vendorBookingStatuses.filter((s) => s.status === "BOOKED").map((s) => s.category));
   const criticalCategorySet = new Set<string>(CRITICAL_VENDOR_CATEGORIES);
   const unbookedCategoryLabels = [
     ...ONBOARDING_VENDOR_CATEGORIES.filter((c) => criticalCategorySet.has(c.value) && !bookedCategories.has(c.value)),
     ...ONBOARDING_VENDOR_CATEGORIES.filter((c) => !criticalCategorySet.has(c.value) && !bookedCategories.has(c.value)),
   ].map((c) => c.label);
+  const bookedCriticalCategoryLabel = ONBOARDING_VENDOR_CATEGORIES.find(
+    (c) => criticalCategorySet.has(c.value) && bookedCategories.has(c.value)
+  )?.label;
 
   const health = getWeddingHealthScore({
     checklistPercent,
@@ -192,7 +195,7 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <WeddingHealthCard health={health} unbookedCategoryLabels={unbookedCategoryLabels} />
+      <WeddingHealthCard health={health} unbookedCategoryLabels={unbookedCategoryLabels} bookedCriticalCategoryLabel={bookedCriticalCategoryLabel} />
 
       <BisaAISuggestionsCard suggestions={suggestions} />
 

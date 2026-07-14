@@ -52,10 +52,12 @@ const CORE_ITEMS: NavItem[] = [
 ];
 
 const PASS_ITEMS: NavItem[] = [
-  { href: "/traditional-list", label: "Traditional List", passOnly: true },
+  { href: "/traditional-ceremony", label: "Traditional Ceremony", passOnly: true },
+  { href: "/honeymoon", label: "Honeymoon", passOnly: true },
   { href: "/dress-tryon", label: "Dress Try-On", passOnly: true },
   { href: "/collaboration", label: "Collaboration", passOnly: true },
   { href: "/design", label: "Design Tools", passOnly: true },
+  { href: "/vault", label: "Wedding Vault", passOnly: true },
 ];
 
 export interface SidebarUser {
@@ -65,7 +67,7 @@ export interface SidebarUser {
 
 export function Sidebar({ user, hasWeddingPass }: { user: SidebarUser; hasWeddingPass: boolean }) {
   return (
-    <aside className="hidden w-64 shrink-0 border-r border-akoma-ink/10 bg-white sm:flex sm:flex-col">
+    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-akoma-ink/10 bg-white sm:flex">
       <SidebarContent user={user} hasWeddingPass={hasWeddingPass} />
     </aside>
   );
@@ -86,10 +88,14 @@ export function SidebarContent({
 
   return (
     <>
-      <Link href="/" className="px-6 py-4" onClick={onNavigate}>
+      <Link href="/dashboard" className="shrink-0 px-6 py-4" onClick={onNavigate}>
         <Logo className="h-14 w-auto" />
       </Link>
-      <nav className="flex-1 space-y-1 px-3">
+      {/* min-h-0 is required alongside flex-1 for overflow-y-auto to
+          actually kick in here instead of growing past the sticky
+          h-screen aside's bounds (flex children default to min-height:
+          auto, which ignores overflow otherwise). */}
+      <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3">
         {CORE_ITEMS.map((item) => (
           <NavLink key={item.href} item={item} active={pathname.startsWith(item.href)} showPassBadges={showPassBadges} onNavigate={onNavigate} />
         ))}
@@ -98,7 +104,7 @@ export function SidebarContent({
           <NavLink key={item.href} item={item} active={pathname.startsWith(item.href)} showPassBadges={showPassBadges} onNavigate={onNavigate} />
         ))}
       </nav>
-      <div className="space-y-1 px-3 pb-3">
+      <div className="shrink-0 space-y-0.5 px-3 pb-3">
         <div className="my-3 border-t border-akoma-ink/10" />
         <NavLink item={{ href: "/pricing", label: "Pricing" }} active={pathname.startsWith("/pricing")} showPassBadges={showPassBadges} onNavigate={onNavigate} />
         <NavLink item={{ href: "/profile", label: "Profile" }} active={pathname.startsWith("/profile")} showPassBadges={showPassBadges} onNavigate={onNavigate} />
@@ -109,7 +115,7 @@ export function SidebarContent({
           onNavigate={onNavigate}
         />
       </div>
-      <div className="border-t border-akoma-ink/10 p-3">
+      <div className="shrink-0 border-t border-akoma-ink/10 p-3">
         <div className="mb-2 flex items-center gap-2 px-1">
           <Avatar pictureUrl={user.profilePictureUrl} name={user.name} size="sm" />
           <span className="truncate text-sm font-medium text-akoma-ink">{user.name}</span>
@@ -144,7 +150,7 @@ function NavLink({
       onClick={onNavigate}
       data-tour={item.tourId}
       className={clsx(
-        "flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+        "flex items-center justify-between rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
         active ? "bg-akoma-green/10 text-akoma-green" : "text-akoma-ink/70 hover:bg-akoma-ink/5"
       )}
     >

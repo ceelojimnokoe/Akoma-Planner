@@ -7,6 +7,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentWeddingPlan } from "@/lib/session";
 import { calculateBudgetSummary } from "@/lib/budget";
+import { matchBudgetCategoryByName } from "@/lib/budget-fit";
 import { formatGHS } from "@/lib/currency";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Card } from "@/components/ui/Card";
@@ -14,6 +15,7 @@ import { BudgetCategoryRow } from "@/components/budget/BudgetCategoryRow";
 import { AddBudgetCategoryForm } from "@/components/budget/AddBudgetCategoryForm";
 import { BudgetProgressBar } from "@/components/budget/BudgetProgressBar";
 import { BudgetAlertWatcher } from "@/components/budget/BudgetAlertWatcher";
+import { TRADITIONAL_CUSTOMARY_BUDGET_NAME } from "@/lib/traditional-ceremony-defaults";
 
 export default async function BudgetPage() {
   const weddingPlan = await getCurrentWeddingPlan();
@@ -23,6 +25,7 @@ export default async function BudgetPage() {
   });
 
   const summary = calculateBudgetSummary(weddingPlan!.totalBudgetGHS, categories);
+  const traditionalCustomaryId = matchBudgetCategoryByName(TRADITIONAL_CUSTOMARY_BUDGET_NAME, categories)?.id;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -67,7 +70,7 @@ export default async function BudgetPage() {
           </thead>
           <tbody className="divide-y divide-akoma-ink/5">
             {summary.categories.map((c) => (
-              <BudgetCategoryRow key={c.id} category={c} />
+              <BudgetCategoryRow key={c.id} category={c} spentDerivedFrom={c.id === traditionalCustomaryId ? "Traditional Ceremony" : undefined} />
             ))}
           </tbody>
         </table>

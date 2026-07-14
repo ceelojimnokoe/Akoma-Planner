@@ -52,7 +52,25 @@ function matchesPrefix(pathname: string, prefixes: string[]): boolean {
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
-  const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+  // Runs on every request, so a missing env var here means every page
+  // 500s with no clue why — @supabase/ssr's own error ("Your project's
+  // URL and Key are required...") gives no indication these are just
+  // unset, not wrong. Fail fast with the actual variable names so this
+  // is diagnosable straight from the deployment logs.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    const missing = [!supabaseUrl && "NEXT_PUBLIC_SUPABASE_URL", !supabaseAnonKey && "NEXT_PUBLIC_SUPABASE_ANON_KEY"]
+      .filter(Boolean)
+      .join(", ");
+    throw new Error(
+      `Missing required environment variable(s): ${missing}. ` +
+        "Set these in your deployment platform's project settings (e.g. Vercel → Settings → Environment Variables, " +
+        "enabled for the Production environment) and redeploy — NEXT_PUBLIC_* variables are inlined at build time."
+    );
+  }
+
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();

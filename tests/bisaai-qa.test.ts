@@ -36,6 +36,8 @@ function buildContext(overrides: Partial<WeddingContext> = {}): WeddingContext {
     checklist: { percent: 50, doneCount: 10, totalCount: 20, overdueCount: 0, upcomingCount: 10 },
     vendors: { bookedCount: 5, totalCount: 12, byCategory: {}, interests: [] },
     style: { theme: null, primaryColor: null, secondaryColor: null, venueName: null, tradition: "Akan" },
+    traditionalCeremony: { itemsDone: 0, itemsTotal: 0, spentGHS: 0, allocatedGHS: 0 },
+    honeymoon: { isSetUp: false, allocatedGHS: 0, spentGHS: 0 },
     ...overrides,
   };
 }

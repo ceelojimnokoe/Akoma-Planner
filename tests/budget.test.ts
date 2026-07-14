@@ -49,4 +49,17 @@ describe("calculateBudgetSummary", () => {
     expect(summary.percentSpent).toBe(0);
     expect(summary.categories[0].percentOfTotalBudget).toBe(0);
   });
+
+  it("tolerates extra fields on the input (e.g. TraditionalCeremonyItem's category/done) — the Traditional Ceremony page reuses this unchanged for per-item math", () => {
+    const items = [
+      { id: "1", name: "Kente cloth", allocatedGHS: 3_000, spentGHS: 3_000, category: "Kente & Cloth", done: true },
+      { id: "2", name: "Engagement ring", allocatedGHS: 8_000, spentGHS: 4_000, category: "Jewelry", done: false },
+    ];
+    const summary = calculateBudgetSummary(25_000, items);
+
+    expect(summary.totalSpentGHS).toBe(7_000);
+    const ring = summary.categories.find((c) => c.id === "2")!;
+    expect(ring.remainingInCategory).toBe(4_000);
+    expect(ring.isOverBudget).toBe(false);
+  });
 });

@@ -17,6 +17,8 @@ import { canCreateWeddingPlan, canSetGuestEstimate } from "@/lib/plan";
 import { onboardingSchema, type OnboardingInput } from "@/lib/validation/wedding";
 import { buildDefaultChecklist } from "@/lib/checklist-defaults";
 import { buildDefaultBudgetCategories } from "@/lib/budget-defaults";
+import { buildDefaultTraditionalCeremonyItems, resolveTraditionalCeremonyCatalogCity } from "@/lib/traditional-ceremony-defaults";
+import { buildDefaultHoneymoonChecklist } from "@/lib/honeymoon-defaults";
 import { orUndefined, dateOrUndefined } from "@/lib/form-shaping";
 import { createNotification } from "@/lib/notifications";
 import type {
@@ -68,6 +70,14 @@ export async function createWeddingPlan(rawInput: OnboardingInput): Promise<Crea
   }
 
   const input = parsed.data;
+
+  // Traditional Ceremony's per-couple defaults are copied from the global
+  // TraditionalListItem catalog, filtered by city — one extra read before
+  // the main create() below (see lib/traditional-ceremony-defaults.ts for
+  // why "Other" falls back to Accra's catalog rather than seeding nothing).
+  const traditionalCatalogItems = await prisma.traditionalListItem.findMany({
+    where: { city: resolveTraditionalCeremonyCatalogCity(input.city) },
+  });
 
   const weddingPlan = await prisma.weddingPlan.create({
     data: {
@@ -127,6 +137,8 @@ export async function createWeddingPlan(rawInput: OnboardingInput): Promise<Crea
           })),
         },
       },
+      traditionalCeremonyItems: { createMany: { data: buildDefaultTraditionalCeremonyItems(traditionalCatalogItems) } },
+      honeymoonChecklistItems: { createMany: { data: buildDefaultHoneymoonChecklist() } },
     },
   });
 
