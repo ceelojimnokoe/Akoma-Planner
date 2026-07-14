@@ -25,3 +25,29 @@ export const VENDOR_CATEGORY_LABEL: Record<VendorCategory, string> = {
   MC: "MC",
   PLANNER: "Wedding Planner",
 };
+
+// The reverse lookup: turns a word a BisaAI chat user might actually type
+// ("photographers", "DJ", "caterer") into the enum value, for the
+// FIND_VENDORS intent (src/lib/bisaai-intent.ts). Deliberately separate
+// from VENDOR_CATEGORY_TO_BUDGET_KEYWORDS in lib/budget-fit.ts — that map
+// points a VendorCategory at a free-text *budget category* name, this one
+// points free-text *chat input* at a VendorCategory; conflating them would
+// make either list's keywords wrong for the other's purpose (e.g. "band"
+// is a reasonable budget-category keyword for MUSIC, but a user typing
+// "band" in chat almost certainly means the vendor category, same value —
+// coincidence here, not guaranteed in general).
+export const VENDOR_CATEGORY_KEYWORDS: Record<VendorCategory, string[]> = {
+  VENUE: ["venue", "venues"],
+  CATERING: ["caterer", "caterers", "catering"],
+  PHOTOGRAPHY: ["photographer", "photographers", "photography", "videographer", "videographers"],
+  ATTIRE: ["attire", "dress", "dresses", "tailor", "tailors", "bridal wear", "groom's wear"],
+  DECOR: ["decor", "decorator", "decorators", "florist", "florists"],
+  MUSIC: ["dj", "band", "bands", "entertainment", "music"],
+  MAKEUP: ["makeup", "hair", "hairstylist", "hairstylists", "makeup artist", "makeup artists"],
+  TRANSPORT: ["transport", "transportation", "car hire", "car rental"],
+  CAKE: ["cake", "cakes", "baker", "bakers"],
+  OTHER: [],
+  JEWELLERY: ["jewellery", "jewelry", "ring", "rings"],
+  MC: ["mc", "emcee", "master of ceremonies"],
+  PLANNER: ["planner", "planners", "coordinator", "coordinators", "wedding planner"],
+};

@@ -29,7 +29,14 @@ import { buildDefaultChecklist, ONBOARDING_CATEGORY_CHECKLIST_TITLES } from "../
 import { buildDefaultHoneymoonChecklist } from "../src/lib/honeymoon-defaults";
 import { buildDefaultTraditionalCeremonyItems, resolveTraditionalCeremonyCatalogCity } from "../src/lib/traditional-ceremony-defaults";
 import { deriveCategoryBookingStatus } from "../src/lib/vendor-booking-progress";
-import { DEMO_USER_EMAIL, DEMO_USER_PASSWORD, TEST_PASS_USER_EMAIL, TEST_PASS_USER_PASSWORD } from "../src/lib/session";
+import {
+  DEMO_USER_EMAIL,
+  DEMO_USER_PASSWORD,
+  TEST_PASS_USER_EMAIL,
+  TEST_PASS_USER_PASSWORD,
+  FREE_TEST_USER_EMAIL,
+  FREE_TEST_USER_PASSWORD,
+} from "../src/lib/session";
 import { WEDDING_PASS_AMOUNT_GHS } from "../src/lib/pricing";
 import { createSupabaseAdminClient } from "../src/lib/supabase/admin";
 
@@ -89,7 +96,8 @@ async function main() {
   // log in with an account that already has the Pass, without going
   // through a real Paystack payment.
   if (process.env.NODE_ENV !== "production") {
-    await seedTestPassWedding();
+    await seedTestPassWedding(vendors);
+    await seedFreeTestAccount(vendors);
   }
 
   console.log("Seed complete.");
@@ -812,7 +820,7 @@ async function seedAiLogs(weddingPlanId: string) {
 // without duplicating the demo account's full data set.
 // ---------------------------------------------------------------------------
 
-async function seedTestPassWedding() {
+async function seedTestPassWedding(vendors: Awaited<ReturnType<typeof seedVendors>>) {
   const supabaseId = await getOrCreateSupabaseId(TEST_PASS_USER_EMAIL, TEST_PASS_USER_PASSWORD, "Pass Test Account");
   const user = await prisma.user.create({
     data: {
@@ -879,9 +887,6 @@ async function seedTestPassWedding() {
   await prisma.traditionalCeremonyItem.createMany({
     data: buildDefaultTraditionalCeremonyItems(traditionalCatalogItems).map((item) => ({ ...item, weddingPlanId: weddingPlan.id })),
   });
-  await prisma.honeymoonChecklistItem.createMany({
-    data: buildDefaultHoneymoonChecklist().map((item) => ({ ...item, weddingPlanId: weddingPlan.id })),
-  });
 
   const guestData: Array<{ name: string; side: Side; rsvpStatus: RsvpStatus; plusOne?: boolean }> = [
     { name: "Yaa Asantewaa", side: "BRIDE", rsvpStatus: "YES", plusOne: true },
@@ -897,7 +902,66 @@ async function seedTestPassWedding() {
     data: guestData.map((g) => ({ ...g, weddingPlanId: weddingPlan.id })),
   });
 
+  // Closes the gap that used to leave this account with zero
+  // BudgetCategory/VendorInterest/HoneymoonPlan rows — Budget, Vendors,
+  // Dashboard and BisaAI all need real content here to be testable, same
+  // reasoning as the demo account below. Reuses the exact same shared
+  // helpers rather than hand-rolling a second data set.
+  await seedBudgetCategories(weddingPlan.id);
+  const touchedCategories = await seedVendorInterests(weddingPlan.id, vendors);
+  await syncSeededVendorBooking(weddingPlan.id, touchedCategories);
+  await seedHoneymoonPlan(weddingPlan.id); // creates the HoneymoonPlan row *and* its default checklist items
+
   console.log(`  seeded dev-only Wedding Pass test account (${TEST_PASS_USER_EMAIL} / ${TEST_PASS_USER_PASSWORD})`);
+}
+
+// ---------------------------------------------------------------------------
+// Dev-only Free test account — the Free-tier counterpart to the Wedding
+// Pass account above. Same guard, same shared seed helpers as the demo
+// account (seedSampleWedding) for equivalent richness, distinct from that
+// account's "Ama & Kwame" marketing-flavored identity and content.
+// ---------------------------------------------------------------------------
+
+async function seedFreeTestAccount(vendors: Awaited<ReturnType<typeof seedVendors>>) {
+  const supabaseId = await getOrCreateSupabaseId(FREE_TEST_USER_EMAIL, FREE_TEST_USER_PASSWORD, "Free Test Account");
+  const user = await prisma.user.create({
+    data: {
+      supabaseId,
+      email: FREE_TEST_USER_EMAIL,
+      name: "Free Test Account",
+      authProvider: "email",
+      emailVerified: true,
+    },
+  });
+
+  const weddingDate = new Date();
+  weddingDate.setMonth(weddingDate.getMonth() + 6);
+
+  const weddingPlan = await prisma.weddingPlan.create({
+    data: {
+      coupleNames: "Free Test Account",
+      weddingDate,
+      totalBudgetGHS: 100_000,
+      city: "ACCRA",
+      guestEstimate: 150,
+      tradition: "Ga",
+      hasWeddingPass: false,
+      ownerUserId: user.id,
+      members: {
+        create: { userId: user.id, role: "OWNER" },
+      },
+    },
+  });
+
+  await seedBudgetCategories(weddingPlan.id);
+  await seedChecklist(weddingPlan.id, weddingDate);
+  await seedGuests(weddingPlan.id);
+  const touchedCategories = await seedVendorInterests(weddingPlan.id, vendors);
+  await syncSeededVendorBooking(weddingPlan.id, touchedCategories);
+  await seedTraditionalCeremonyItems(weddingPlan.id);
+  await seedHoneymoonPlan(weddingPlan.id);
+
+  console.log(`  seeded dev-only Free test account (${FREE_TEST_USER_EMAIL} / ${FREE_TEST_USER_PASSWORD})`);
 }
 
 main()

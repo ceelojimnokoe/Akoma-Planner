@@ -218,7 +218,46 @@ const TOPICS: QATopic[] = [
     ],
     followUps: ["What's the usual budget split for this?", "Give me wedding etiquette advice", "What are common wedding mistakes to avoid?"],
   },
+  {
+    id: "honeymoon",
+    keywords: ["honeymoon", "post-wedding trip", "getaway"],
+    angles: [
+      (ctx) =>
+        ctx.honeymoon.isSetUp
+          ? `You've allocated ${formatGHS(ctx.honeymoon.allocatedGHS)} for your honeymoon and spent ${formatGHS(ctx.honeymoon.spentGHS)} so far. The Honeymoon Planner tracks your destination, style and a dedicated checklist completely separate from your main wedding budget.`
+          : "You haven't set up a honeymoon plan yet — the Honeymoon Planner tracks a destination, budget, and checklist completely separate from your main wedding budget, so it won't eat into your venue/catering/decor allocations.",
+      () =>
+        "A few honeymoon-planning tips: book flights and major accommodation 2-3 months out for better rates, keep a light first day or two after the wedding rather than an ambitious itinerary right away, and check passport/visa validity early if you're travelling internationally.",
+    ],
+    followUps: ["How's my budget looking?", "What should I focus on this week?", "Give me a cost-saving tip"],
+  },
 ];
+
+// The 8 clickable Quick Actions shown before the user types anything —
+// replaces a blank chat window (see ChatPanel/FloatingChatBubble's
+// showStarters). Deliberately a separate export from getStarterPrompts()
+// below rather than a replacement of it: STARTER_PROMPTS' plain-text
+// content is still relied on by generateQAAnswer's own fallback
+// suggestedFollowUps (see FALLBACK_ANSWER handling), and by
+// tests/bisaai-qa.test.ts's assertion that those follow-ups are a subset
+// of getStarterPrompts() — reusing it for a visually distinct,
+// emoji-prefixed button set would break that invariant for no benefit.
+// Each one is verified (see tests/bisaai-intent.test.ts) to route through
+// detectIntent to a real, useful first response.
+const QUICK_ACTIONS = [
+  "💰 Help me allocate my budget",
+  "📋 What's due this week?",
+  "👥 Show pending guest RSVPs",
+  "🏛️ Plan my traditional ceremony",
+  "🛍️ Recommend vendors within budget",
+  "🤖 Explain my Wedding Health Score",
+  "✈️ Help plan my honeymoon",
+  "📅 Show upcoming deadlines",
+];
+
+export function getQuickActions(): string[] {
+  return QUICK_ACTIONS;
+}
 
 const STARTER_PROMPTS = [
   "How's my budget looking?",

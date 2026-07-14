@@ -1,9 +1,9 @@
 // src/components/bisaai/FloatingChatBubble.tsx
 //
 // A persistent bottom-right chat bubble, available on every page inside
-// the app shell (mounted once in (app)/layout.tsx) — so you can ask
-// BisaAI a quick question without leaving whatever you're doing, instead
-// of only from the dedicated /bisaai page. Same askBasicQA() action and
+// the app shell (mounted once in (app)/layout.tsx) — so you can ask (or,
+// on Wedding Pass, tell) BisaAI something without leaving whatever you're
+// doing, instead of only from the dedicated /bisaai page. Same
 // useBisaAIChat logic as the full ChatPanel on that page; this component
 // doesn't duplicate that logic (see useBisaAIChat.ts), it's a separate,
 // small, self-contained widget because its layout (collapsible, fixed-
@@ -20,7 +20,7 @@ import { MockBadge } from "@/components/ui/Badge";
 
 export function FloatingChatBubble({ weddingPlanId }: { weddingPlanId: string }) {
   const [open, setOpen] = useState(false);
-  const { messages, input, setInput, isPending, handleSubmit, handleChipClick, showStarters, starterPrompts, followUps } =
+  const { messages, input, setInput, isPending, handleSubmit, handleChipClick, showQuickActions, quickActions, followUps } =
     useBisaAIChat(weddingPlanId);
 
   if (!open) {
@@ -67,15 +67,15 @@ export function FloatingChatBubble({ weddingPlanId }: { weddingPlanId: string })
         ))}
         {isPending && <TypingDots />}
 
-        {showStarters && !isPending && (
+        {showQuickActions && !isPending && (
           <div className="flex flex-wrap gap-1.5 pt-1">
-            {starterPrompts.slice(0, 4).map((prompt) => (
+            {quickActions.slice(0, 4).map((prompt) => (
               <ChatChip key={prompt} label={prompt} onClick={() => handleChipClick(prompt)} />
             ))}
           </div>
         )}
 
-        {!showStarters && followUps.length > 0 && (
+        {!showQuickActions && followUps.length > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-1">
             {followUps.map((prompt) => (
               <ChatChip key={prompt} label={prompt} onClick={() => handleChipClick(prompt)} disabled={isPending} />

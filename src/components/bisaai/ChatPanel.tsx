@@ -1,9 +1,10 @@
 // src/components/bisaai/ChatPanel.tsx
 //
-// The free-tier Q&A chat. Conversation history lives only in this
-// component's local state (via useBisaAIChat) — there's no server-side
-// conversation/session concept in this MVP, though recent questions are
-// forwarded to askBasicQA so answers can vary across a repeated topic
+// The BisaAI chat panel — Q&A for everyone, real actions for Wedding Pass
+// (see server/actions/bisaai-assistant.ts). Conversation history lives
+// only in this component's local state (via useBisaAIChat) — there's no
+// server-side conversation/session concept in this MVP, though recent
+// questions are forwarded so answers can vary across a repeated topic
 // (see lib/bisaai-qa.ts). Every answer carries a MockBadge since nothing
 // here calls a real model yet — it's grounded in real wedding data, but
 // the *generation* is still rule-based.
@@ -18,7 +19,7 @@ import { MockBadge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 
 export function ChatPanel({ weddingPlanId }: { weddingPlanId: string }) {
-  const { messages, input, setInput, isPending, handleSubmit, handleChipClick, showStarters, starterPrompts, followUps } =
+  const { messages, input, setInput, isPending, handleSubmit, handleChipClick, showQuickActions, quickActions, followUps } =
     useBisaAIChat(weddingPlanId);
 
   return (
@@ -43,15 +44,15 @@ export function ChatPanel({ weddingPlanId }: { weddingPlanId: string }) {
         ))}
         {isPending && <TypingDots />}
 
-        {showStarters && !isPending && (
+        {showQuickActions && !isPending && (
           <div className="flex flex-wrap gap-1.5 pt-1">
-            {starterPrompts.map((prompt) => (
+            {quickActions.map((prompt) => (
               <ChatChip key={prompt} label={prompt} onClick={() => handleChipClick(prompt)} />
             ))}
           </div>
         )}
 
-        {!showStarters && followUps.length > 0 && (
+        {!showQuickActions && followUps.length > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-1">
             {followUps.map((prompt) => (
               <ChatChip key={prompt} label={prompt} onClick={() => handleChipClick(prompt)} disabled={isPending} />

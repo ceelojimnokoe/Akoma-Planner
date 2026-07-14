@@ -71,3 +71,40 @@ export async function deleteBudgetCategory(id: string): Promise<{ ok: boolean }>
   revalidatePath("/dashboard");
   return { ok: true };
 }
+
+/**
+ * Moves an amount from one category's allocation to another — one atomic
+ * write via $transaction (same precedent as vendor-booking.ts's
+ * replace-vendor transaction) so a failure partway through never leaves
+ * money deducted from the source without landing in the destination.
+ * Refuses a move that would leave the source category negative.
+ */
+export async function moveBudgetAmount(
+  weddingPlanId: string,
+  sourceCategoryId: string,
+  destCategoryId: string,
+  amountGHS: number
+): Promise<{ ok: boolean; error?: string }> {
+  if (amountGHS <= 0) return { ok: false, error: "Amount must be greater than zero." };
+  if (sourceCategoryId === destCategoryId) return { ok: false, error: "Source and destination categories must be different." };
+
+  const [source, dest] = await Promise.all([
+    prisma.budgetCategory.findUniqueOrThrow({ where: { id: sourceCategoryId } }),
+    prisma.budgetCategory.findUniqueOrThrow({ where: { id: destCategoryId } }),
+  ]);
+  if (source.weddingPlanId !== weddingPlanId || dest.weddingPlanId !== weddingPlanId) {
+    return { ok: false, error: "Category does not belong to this wedding plan." };
+  }
+  if (amountGHS > source.allocatedGHS) {
+    return { ok: false, error: `${source.name} only has ${source.allocatedGHS} GHS allocated — can't move ${amountGHS} GHS out of it.` };
+  }
+
+  await prisma.$transaction([
+    prisma.budgetCategory.update({ where: { id: sourceCategoryId }, data: { allocatedGHS: source.allocatedGHS - amountGHS } }),
+    prisma.budgetCategory.update({ where: { id: destCategoryId }, data: { allocatedGHS: dest.allocatedGHS + amountGHS } }),
+  ]);
+
+  revalidatePath("/budget");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}

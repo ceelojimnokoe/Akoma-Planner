@@ -5,15 +5,21 @@
 // corner widget, see each file's own header comment for why they aren't
 // merged), but the logic both now need is materially more than "call one
 // action, append to array": forwarding recent question history so
-// answers don't repeat verbatim, and surfacing starter/follow-up chips.
-// Duplicating that across two files would drift; this hook is the one
-// place it lives.
+// answers don't repeat verbatim, and surfacing Quick Action/follow-up
+// chips. Duplicating that across two files would drift; this hook is the
+// one place it lives.
+//
+// Talks to processAssistantMessage (server/actions/bisaai-assistant.ts —
+// Layer 3 of BisaAI's three-layer architecture) instead of the older
+// askBasicQA, so the same chat surface now also handles Wedding Pass
+// action commands, not just informational Q&A. askBasicQA itself is left
+// in place, unused — see that file's own header comment.
 
 "use client";
 
 import { useState, useTransition } from "react";
-import { askBasicQA } from "@/server/actions/bisaai";
-import { getStarterPrompts } from "@/lib/bisaai-qa";
+import { processAssistantMessage } from "@/server/actions/bisaai-assistant";
+import { getQuickActions } from "@/lib/bisaai-qa";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -22,7 +28,7 @@ export interface ChatMessage {
 }
 
 const GREETING =
-  "Hi! Ask me anything about planning your wedding — I'll pull in your real budget, guest list, checklist and vendor data to give you a grounded answer, not just a generic one.";
+  "Hi! Ask me anything about planning your wedding — budget, guests, vendors, checklist, traditional ceremony, honeymoon, all grounded in your real data. Wedding Pass members can also ask me to make changes directly, like \"Add GHS 1,000 to Catering\" or \"Mark Photographer as booked.\"";
 
 export function useBisaAIChat(weddingPlanId: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", text: GREETING }]);
@@ -41,7 +47,7 @@ export function useBisaAIChat(weddingPlanId: string) {
     setMessages((prev) => [...prev, { role: "user", text: q }]);
     setInput("");
     startTransition(async () => {
-      const result = await askBasicQA(weddingPlanId, q, recentQuestions);
+      const result = await processAssistantMessage(weddingPlanId, q, recentQuestions);
       const next: ChatMessage = result.ok
         ? { role: "assistant", text: result.data.answer, followUps: result.data.suggestedFollowUps }
         : { role: "assistant", text: result.error ?? "Something went wrong." };
@@ -59,7 +65,7 @@ export function useBisaAIChat(weddingPlanId: string) {
   }
 
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
-  const showStarters = messages.length <= 1;
+  const showQuickActions = messages.length <= 1;
   const followUps = isPending ? [] : (lastAssistant?.followUps ?? []);
 
   return {
@@ -69,8 +75,8 @@ export function useBisaAIChat(weddingPlanId: string) {
     isPending,
     handleSubmit,
     handleChipClick,
-    showStarters,
-    starterPrompts: getStarterPrompts(),
+    showQuickActions,
+    quickActions: getQuickActions(),
     followUps,
   };
 }

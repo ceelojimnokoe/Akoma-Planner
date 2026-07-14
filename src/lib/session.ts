@@ -29,6 +29,16 @@ export const DEMO_USER_PASSWORD = "akomaplanner-demo";
 export const TEST_PASS_USER_EMAIL = "pass@test.com";
 export const TEST_PASS_USER_PASSWORD = "password123";
 
+// A third seeded account, the Free-tier counterpart to the one above —
+// same dev/local-only guard in prisma/seed.ts, same richness of sample
+// data (budget, checklist, guests, vendor interests, traditional-ceremony
+// items, a honeymoon plan), just hasWeddingPass: false. Exists so BisaAI's
+// "Free never mutates data" behavior, and every other Free-vs-Pass gate,
+// has a real account with real content to test against instead of only
+// an empty new signup.
+export const FREE_TEST_USER_EMAIL = "free@test.com";
+export const FREE_TEST_USER_PASSWORD = "password123";
+
 /** Like getCurrentUser(), but never redirects — null for an anonymous
  *  visitor. For public pages (the landing page) that render either way
  *  but tailor a CTA to signed-in status. */

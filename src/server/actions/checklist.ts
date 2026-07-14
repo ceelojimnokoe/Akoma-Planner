@@ -34,6 +34,19 @@ export async function updateChecklistItemPriority(
   return { ok: true };
 }
 
+/** Reschedules an existing task's due date — the one write this file was
+ *  missing (toggle/priority/delete all existed, nothing touched dueDate
+ *  on an existing item). No plan gate, same reasoning as toggling done:
+ *  editing what's already there is always allowed. Powers BisaAI's
+ *  RESCHEDULE command as well as any future direct UI for it. */
+export async function updateChecklistItemDueDate(id: string, dueDate: Date): Promise<{ ok: boolean }> {
+  await prisma.checklistItem.update({ where: { id }, data: { dueDate } });
+  revalidatePath("/checklist");
+  revalidatePath("/calendar");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
 export async function deleteChecklistItem(id: string): Promise<{ ok: boolean }> {
   await prisma.checklistItem.delete({ where: { id } });
   revalidatePath("/checklist");
