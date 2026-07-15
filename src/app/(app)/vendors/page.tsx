@@ -3,8 +3,12 @@
 // Vendor browse/filter screen. Browsing is a free-tier feature — every
 // vendor (including featured ones) is listed, but VendorCard hides
 // pricing/rating/description behind a lock for featured listings on a
-// Free plan. Filtering is a plain GET form (see VendorFilters).
+// Free plan. Filtering is instant client-side URL updates (see
+// VendorFilters, hooks/useInstantFilters.ts) that this Server Component
+// re-reads via searchParams on every change — no submit button, no full
+// page reload.
 
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWeddingPlan } from "@/lib/session";
 import { VendorFilters } from "@/components/vendors/VendorFilters";
@@ -101,15 +105,9 @@ export default async function VendorsPage({
         </LinkButton>
       </div>
 
-      <VendorFilters
-        category={category}
-        city={city}
-        featured={featured}
-        withinBudget={withinBudget}
-        rating={rating}
-        price={price}
-        status={status}
-      />
+      <Suspense fallback={<div className="h-[74px]" />}>
+        <VendorFilters />
+      </Suspense>
 
       {visibleVendors.length === 0 ? (
         <p className="py-12 text-center text-sm text-akoma-ink/50">No vendors match those filters.</p>

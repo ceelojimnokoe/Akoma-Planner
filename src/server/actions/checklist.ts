@@ -47,6 +47,19 @@ export async function updateChecklistItemDueDate(id: string, dueDate: Date): Pro
   return { ok: true };
 }
 
+/** Saves the couple-entered notes on a task from the Task Details modal
+ *  (components/tasks/TaskDetailsModal.tsx) — no plan gate, same reasoning
+ *  as toggling done. An emptied textarea normalizes to a true `null`
+ *  rather than storing "", so "no notes" stays a single, consistent state. */
+export async function updateChecklistItemNotes(id: string, notes: string): Promise<{ ok: boolean }> {
+  const trimmed = notes.trim().slice(0, 2000);
+  await prisma.checklistItem.update({ where: { id }, data: { notes: trimmed || null } });
+  revalidatePath("/checklist");
+  revalidatePath("/calendar");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
 export async function deleteChecklistItem(id: string): Promise<{ ok: boolean }> {
   await prisma.checklistItem.delete({ where: { id } });
   revalidatePath("/checklist");

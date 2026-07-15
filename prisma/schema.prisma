@@ -432,6 +432,13 @@ model ChecklistItem {
   // CATEGORY_TIPS in checklist-defaults.ts). Real, written descriptions
   // for every default template item; blank for custom user-added tasks.
   description   String?
+  // Couple-entered context for completing the task (e.g. "confirm gold and
+  // white theme, discuss payment schedule") — distinct from `description`
+  // above, which is static template copy the couple never writes
+  // themselves. Always null until edited via the Task Details modal (see
+  // components/tasks/TaskDetailsModal.tsx); never set by the default
+  // checklist template or by addChecklistItem.
+  notes         String?
   dueDate       DateTime?
   done          Boolean     @default(false)
   // Seeded from the default Ghana wedding checklist template vs. added by

@@ -23,9 +23,9 @@ import { GuestProgressCard } from "@/components/dashboard/GuestProgressCard";
 import { PendingGuestsCard } from "@/components/dashboard/PendingGuestsCard";
 import { WeddingHealthCard } from "@/components/dashboard/WeddingHealthCard";
 import { BisaAISuggestionsCard } from "@/components/dashboard/BisaAISuggestionsCard";
+import { FocusTaskList } from "@/components/dashboard/FocusTaskList";
 import { calculateGuestStats, selectPendingGuestFollowUps } from "@/lib/guests";
 import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { getBudgetTone } from "@/lib/budget-tone";
@@ -34,7 +34,6 @@ import { sortByFocusPriority } from "@/lib/checklist-sort";
 import { getWeddingHealthScore } from "@/lib/wedding-health";
 import { ONBOARDING_VENDOR_CATEGORIES } from "@/lib/validation/wedding";
 import { CRITICAL_VENDOR_CATEGORIES } from "@/lib/bisaai-qa";
-import { PRIORITY_TONE } from "@/components/checklist/ChecklistItemRow";
 import { BudgetAlertWatcher } from "@/components/budget/BudgetAlertWatcher";
 
 export default async function DashboardPage() {
@@ -213,38 +212,7 @@ export default async function DashboardPage() {
             View checklist →
           </LinkButton>
         </div>
-        {focusTasks.length === 0 ? (
-          <p className="text-sm text-akoma-ink/60">
-            Nothing outstanding — nice work.
-          </p>
-        ) : (
-          <ul className="divide-y divide-akoma-ink/10">
-            {focusTasks.map((task) => (
-              <li
-                key={task.id}
-                className="flex items-center justify-between py-2.5"
-              >
-                <div className="flex items-center gap-2">
-                  <Badge tone={PRIORITY_TONE[task.priority]}>
-                    {task.priority.charAt(0) + task.priority.slice(1).toLowerCase()}
-                  </Badge>
-                  <span className="text-sm font-medium text-akoma-ink">
-                    {task.title}
-                  </span>
-                </div>
-                {task.dueDate && (
-                  <Badge
-                    tone={
-                      daysUntil(task.dueDate) < 0 ? "terracotta" : "neutral"
-                    }
-                  >
-                    {formatDate(task.dueDate)}
-                  </Badge>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+        <FocusTaskList tasks={focusTasks} />
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-3">

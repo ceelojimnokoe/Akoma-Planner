@@ -4,7 +4,7 @@
 // list) is currently selected, off pre-fetched, already-range-correct
 // data the Server Component page hands it — this component makes no
 // Prisma calls itself. A single client component (not three separate
-// ones) because all three need to share one TaskDetailModal instance
+// ones) because all three need to share one TaskDetailsModal instance
 // and its open/closed state; splitting them up would mean either
 // duplicating that state or lifting it above this component for no
 // real benefit.
@@ -14,7 +14,7 @@
 import { useState } from "react";
 import clsx from "clsx";
 import { isSameDay, formatDate } from "@/lib/dates";
-import { TaskDetailModal, type CalendarTask } from "@/components/calendar/TaskDetailModal";
+import { TaskDetailsModal, type ChecklistTask } from "@/components/tasks/TaskDetailsModal";
 import { CalendarTaskChip } from "@/components/calendar/CalendarTaskChip";
 import { Badge } from "@/components/ui/Badge";
 import { PRIORITY_TONE } from "@/components/checklist/ChecklistItemRow";
@@ -56,12 +56,12 @@ export function CalendarView({
   /** 0-indexed month being viewed — only meaningful for month view's
    *  "is this cell in the viewed month or a padding day" check. */
   referenceMonth: number;
-  tasks: CalendarTask[];
+  tasks: ChecklistTask[];
   vendorEvents: CalendarVendorEvent[];
   weddingDate: Date;
   today: Date;
 }) {
-  const [selectedTask, setSelectedTask] = useState<CalendarTask | null>(null);
+  const [selectedTask, setSelectedTask] = useState<ChecklistTask | null>(null);
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
   function tasksForDay(day: Date) {
@@ -146,7 +146,7 @@ export function CalendarView({
             ))
           )}
         </div>
-        <TaskDetailModal task={selectedTask} onClose={() => setSelectedTask(null)} />
+        <TaskDetailsModal task={selectedTask} onClose={() => setSelectedTask(null)} />
       </>
     );
   }
@@ -163,7 +163,7 @@ export function CalendarView({
         ))}
         {gridDays.map((day) => renderDayCell(day, view === "week" ? true : day.getMonth() === referenceMonth))}
       </div>
-      <TaskDetailModal task={selectedTask} onClose={() => setSelectedTask(null)} />
+      <TaskDetailsModal task={selectedTask} onClose={() => setSelectedTask(null)} />
     </>
   );
 }

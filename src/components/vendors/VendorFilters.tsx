@@ -1,10 +1,16 @@
 // src/components/vendors/VendorFilters.tsx
 //
-// Plain GET form — no client JS needed. Submitting re-requests /vendors
-// with query params, which the page reads server-side. Filtering doesn't
-// need to feel instantaneous enough to justify a client component here.
+// Instant filtering: every select/checkbox updates the URL the moment it
+// changes (see hooks/useInstantFilters.ts), which vendors/page.tsx (a
+// Server Component) re-reads on each change — no submit button, no full
+// page reload. Reads its own current values from useSearchParams() rather
+// than receiving them as props, so vendors/page.tsx no longer needs to
+// thread all 7 filter values down.
 
-import Link from "next/link";
+"use client";
+
+import clsx from "clsx";
+import { useInstantFilters } from "@/hooks/useInstantFilters";
 import { VENDOR_PROGRESS_FILTER_OPTIONS, VENDOR_PROGRESS_LABEL } from "@/lib/vendor-booking-progress";
 import { VENDOR_CATEGORY_LABEL } from "@/lib/vendor-category-labels";
 
@@ -23,28 +29,19 @@ const PRICE_OPTIONS = [
   { value: "high", label: "GH₵15,000+" },
 ];
 
-export function VendorFilters({
-  category,
-  city,
-  featured,
-  withinBudget,
-  rating,
-  price,
-  status,
-}: {
-  category?: string;
-  city?: string;
-  featured?: string;
-  withinBudget?: string;
-  rating?: string;
-  price?: string;
-  status?: string;
-}) {
+const FILTER_KEYS = ["category", "city", "featured", "withinBudget", "rating", "price", "status"];
+
+export function VendorFilters() {
+  const { searchParams, setParam, clearParams, isPending } = useInstantFilters();
+
+  const get = (key: string) => searchParams.get(key) ?? "";
+  const hasAnyFilter = FILTER_KEYS.some((key) => searchParams.get(key));
+
   return (
-    <form method="get" className="flex flex-wrap items-end gap-3">
+    <div className={clsx("flex flex-wrap items-end gap-3 transition-opacity", isPending && "opacity-60")}>
       <div>
         <label className="mb-1 block text-xs font-medium text-akoma-ink/70">Category</label>
-        <select name="category" defaultValue={category ?? ""} className={selectClasses}>
+        <select value={get("category")} onChange={(e) => setParam("category", e.target.value)} className={selectClasses}>
           <option value="">All categories</option>
           {CATEGORIES.map(([value, label]) => (
             <option key={value} value={value}>
@@ -55,7 +52,7 @@ export function VendorFilters({
       </div>
       <div>
         <label className="mb-1 block text-xs font-medium text-akoma-ink/70">City</label>
-        <select name="city" defaultValue={city ?? ""} className={selectClasses}>
+        <select value={get("city")} onChange={(e) => setParam("city", e.target.value)} className={selectClasses}>
           <option value="">Accra & Kumasi</option>
           <option value="ACCRA">Accra</option>
           <option value="KUMASI">Kumasi</option>
@@ -63,7 +60,7 @@ export function VendorFilters({
       </div>
       <div>
         <label className="mb-1 block text-xs font-medium text-akoma-ink/70">Listing</label>
-        <select name="featured" defaultValue={featured ?? ""} className={selectClasses}>
+        <select value={get("featured")} onChange={(e) => setParam("featured", e.target.value)} className={selectClasses}>
           <option value="">All vendors</option>
           <option value="STANDARD">Standard</option>
           <option value="FEATURED">Featured</option>
@@ -71,7 +68,7 @@ export function VendorFilters({
       </div>
       <div>
         <label className="mb-1 block text-xs font-medium text-akoma-ink/70">Rating</label>
-        <select name="rating" defaultValue={rating ?? ""} className={selectClasses}>
+        <select value={get("rating")} onChange={(e) => setParam("rating", e.target.value)} className={selectClasses}>
           {RATING_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
@@ -81,7 +78,7 @@ export function VendorFilters({
       </div>
       <div>
         <label className="mb-1 block text-xs font-medium text-akoma-ink/70">Price</label>
-        <select name="price" defaultValue={price ?? ""} className={selectClasses}>
+        <select value={get("price")} onChange={(e) => setParam("price", e.target.value)} className={selectClasses}>
           {PRICE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
@@ -91,7 +88,7 @@ export function VendorFilters({
       </div>
       <div>
         <label className="mb-1 block text-xs font-medium text-akoma-ink/70">My status</label>
-        <select name="status" defaultValue={status ?? ""} className={selectClasses}>
+        <select value={get("status")} onChange={(e) => setParam("status", e.target.value)} className={selectClasses}>
           <option value="">Any status</option>
           {VENDOR_PROGRESS_FILTER_OPTIONS.map((s) => (
             <option key={s} value={s}>
@@ -103,22 +100,18 @@ export function VendorFilters({
       <label className="flex items-center gap-1.5 pb-2.5 text-sm text-akoma-ink/70">
         <input
           type="checkbox"
-          name="withinBudget"
-          value="1"
-          defaultChecked={withinBudget === "1"}
+          checked={get("withinBudget") === "1"}
+          onChange={(e) => setParam("withinBudget", e.target.checked ? "1" : null)}
           className="h-4 w-4 rounded border-akoma-ink/30 text-akoma-green focus:ring-akoma-green"
         />
         Within my budget
       </label>
-      <button type="submit" className="rounded-lg bg-akoma-green px-4 py-2 text-sm font-medium text-white hover:bg-akoma-green/90">
-        Filter
-      </button>
-      {(category || city || featured || withinBudget || rating || price || status) && (
-        <Link href="/vendors" className="text-sm text-akoma-ink/50 hover:underline">
+      {hasAnyFilter && (
+        <button type="button" onClick={() => clearParams([])} className="pb-2.5 text-sm text-akoma-ink/50 hover:underline">
           Clear
-        </Link>
+        </button>
       )}
-    </form>
+    </div>
   );
 }
 
