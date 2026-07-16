@@ -18,7 +18,6 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { readSheet } from "read-excel-file/browser";
 import { importGuests, type ImportGuestsResult } from "@/server/actions/guests";
 import {
   detectColumnMapping,
@@ -87,7 +86,12 @@ export function ImportGuestsModal({ weddingPlanId }: { weddingPlanId: string }) 
     }
 
     try {
-      const data = kind === "xlsx" ? await readSheet(file) : parseCsv(await file.text());
+      // Dynamically imported: read-excel-file's xlsx parser is the single
+      // biggest chunk of this modal's weight, and most visits to /guests
+      // never open this modal at all, let alone pick an .xlsx file over
+      // .csv — no reason to ship it in the page's initial bundle.
+      const data =
+        kind === "xlsx" ? await (await import("read-excel-file/browser")).readSheet(file) : parseCsv(await file.text());
       if (data.length === 0) {
         setFileError("This file doesn't contain any data rows.");
         return;

@@ -16,7 +16,6 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -34,9 +33,15 @@ export default function ResetPasswordPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const supabase = createSupabaseBrowserClient();
-    supabase.auth.getSession().then(({ data }) => {
-      setStatus(data.session ? "ready" : "invalid");
+    // Dynamically imported: see GoogleSignInButton.tsx's own comment — the
+    // supabase-js SDK is the biggest chunk on this route, and deferring it
+    // to a lazy import keeps it out of the initial First Load JS even
+    // though it's still fetched immediately on mount right after.
+    import("@/lib/supabase/client").then(({ createSupabaseBrowserClient }) => {
+      const supabase = createSupabaseBrowserClient();
+      supabase.auth.getSession().then(({ data }) => {
+        setStatus(data.session ? "ready" : "invalid");
+      });
     });
   }, []);
 
@@ -52,6 +57,7 @@ export default function ResetPasswordPage() {
       return;
     }
     startTransition(async () => {
+      const { createSupabaseBrowserClient } = await import("@/lib/supabase/client");
       const supabase = createSupabaseBrowserClient();
       const { error: updateError } = await supabase.auth.updateUser({ password });
       if (updateError) {

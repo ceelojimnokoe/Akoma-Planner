@@ -319,6 +319,7 @@ export default async function DashboardPage() {
                   src={getAccommodationImage(recommendedAccommodation)}
                   alt=""
                   fill
+                  sizes="48px"
                   className="object-cover"
                 />
               </span>

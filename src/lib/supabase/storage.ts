@@ -15,13 +15,20 @@
 // Auth Admin operations.
 //
 // Bucket setup (one-time, in the Supabase dashboard's Storage tab): create
-// a bucket named exactly WEDDING_DOCUMENTS_BUCKET below. No bucket
-// policies are needed — the service role key bypasses Storage RLS the
-// same way it bypasses Postgres RLS.
+// buckets named exactly WEDDING_DOCUMENTS_BUCKET and
+// BUG_REPORT_SCREENSHOTS_BUCKET below. No bucket policies are needed —
+// the service role key bypasses Storage RLS the same way it bypasses
+// Postgres RLS.
 
 import { createClient } from "@supabase/supabase-js";
 
 export const WEDDING_DOCUMENTS_BUCKET = "wedding-documents";
+// Report-a-bug screenshots (src/app/api/upload/bug-report-screenshot,
+// src/server/actions/bug-reports.ts) — a separate bucket from
+// WEDDING_DOCUMENTS_BUCKET since these aren't wedding-plan data at all,
+// just support attachments, and may be filed before a wedding plan even
+// exists.
+export const BUG_REPORT_SCREENSHOTS_BUCKET = "bug-report-screenshots";
 
 export function createSupabaseStorageClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

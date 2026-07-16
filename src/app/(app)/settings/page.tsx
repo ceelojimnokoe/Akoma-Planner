@@ -16,6 +16,7 @@ import { formatDate } from "@/lib/dates";
 import { downgradeToFree } from "@/server/actions/billing";
 import { signOut } from "@/server/actions/auth";
 import { resetTour } from "@/server/actions/tour";
+import { ReportBugModal } from "@/components/settings/ReportBugModal";
 
 export default async function SettingsPage() {
   const user = await getCurrentUser();
@@ -34,7 +35,9 @@ export default async function SettingsPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-akoma-ink">Settings</h1>
-        <p className="mt-1 text-sm text-akoma-ink/60">Account, plan, and export.</p>
+        <p className="mt-1 text-sm text-akoma-ink/60">
+          Account, plan, and export.
+        </p>
       </div>
 
       <Card>
@@ -44,7 +47,12 @@ export default async function SettingsPage() {
             <p className="text-sm text-akoma-ink">{user.name}</p>
             <p className="text-sm text-akoma-ink/60">{user.email}</p>
             {!user.emailVerified && (
-              <LinkButton href="/verify-email" size="sm" variant="ghost" className="mt-2">
+              <LinkButton
+                href="/verify-email"
+                size="sm"
+                variant="ghost"
+                className="mt-2"
+              >
                 Verify email
               </LinkButton>
             )}
@@ -56,8 +64,8 @@ export default async function SettingsPage() {
           </form>
         </div>
         <p className="mt-3 rounded-lg bg-akoma-ink/5 px-3 py-2 text-xs text-akoma-ink/50">
-          Sign-up and log-in are real, backed by Supabase Auth — email/password and Google sign-in both create a
-          genuine, persistent session.
+          Sign-up and log-in are real, backed by Supabase Auth — email/password
+          and Google sign-in both create a genuine, persistent session.
         </p>
       </Card>
 
@@ -65,7 +73,10 @@ export default async function SettingsPage() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="font-semibold text-akoma-ink">Guided tour</h2>
-            <p className="mt-1 text-sm text-akoma-ink/60">Revisit the walkthrough of the dashboard, budget, guests, and more.</p>
+            <p className="mt-1 text-sm text-akoma-ink/60">
+              Revisit the walkthrough of the dashboard, budget, guests, and
+              more.
+            </p>
           </div>
           <form action={resetTour}>
             <Button type="submit" variant="secondary" size="sm">
@@ -78,9 +89,15 @@ export default async function SettingsPage() {
       <Card>
         <h2 className="mb-3 font-semibold text-akoma-ink">Profile</h2>
         <p className="text-sm text-akoma-ink/60">
-          Partner details, wedding style, planning preferences, and more from your onboarding answers.
+          Partner details, wedding style, planning preferences, and more from
+          your onboarding answers.
         </p>
-        <LinkButton href="/profile" size="sm" variant="secondary" className="mt-3">
+        <LinkButton
+          href="/profile"
+          size="sm"
+          variant="secondary"
+          className="mt-3"
+        >
           Edit profile
         </LinkButton>
       </Card>
@@ -90,13 +107,26 @@ export default async function SettingsPage() {
         <dl className="space-y-1.5 text-sm">
           <Row label="Couple" value={weddingPlan!.coupleNames} />
           <Row label="Date" value={formatDate(weddingPlan!.weddingDate)} />
-          <Row label="City" value={weddingPlan!.city.charAt(0) + weddingPlan!.city.slice(1).toLowerCase()} />
+          <Row
+            label="City"
+            value={
+              weddingPlan!.city.charAt(0) +
+              weddingPlan!.city.slice(1).toLowerCase()
+            }
+          />
           <Row label="Tradition" value={weddingPlan!.tradition} />
-          <Row label="Guest estimate" value={String(weddingPlan!.guestEstimate)} />
+          <Row
+            label="Guest estimate"
+            value={String(weddingPlan!.guestEstimate)}
+          />
         </dl>
         <div className="mt-3 flex items-center gap-2">
           <span className="text-sm text-akoma-ink/60">Plan:</span>
-          {canAccessPassFeatures(weddingPlan!) ? <PassBadge /> : <Badge tone="neutral">Free</Badge>}
+          {canAccessPassFeatures(weddingPlan!) ? (
+            <PassBadge />
+          ) : (
+            <Badge tone="neutral">Free</Badge>
+          )}
           {!canAccessPassFeatures(weddingPlan!) && (
             <LinkButton href="/pricing" size="sm" variant="ghost">
               Get the Wedding Pass
@@ -105,13 +135,14 @@ export default async function SettingsPage() {
           {/* Dev-only: a real one-time purchase has no "downgrade" concept —
               this exists purely so a local test account can revisit the
               Free experience without editing the database by hand. */}
-          {process.env.NODE_ENV === "development" && canAccessPassFeatures(weddingPlan!) && (
-            <form action={downgradeToFree.bind(null, weddingPlan!.id)}>
-              <Button type="submit" size="sm" variant="ghost">
-                Switch back to Free (dev only)
-              </Button>
-            </form>
-          )}
+          {process.env.NODE_ENV === "development" &&
+            canAccessPassFeatures(weddingPlan!) && (
+              <form action={downgradeToFree.bind(null, weddingPlan!.id)}>
+                <Button type="submit" size="sm" variant="ghost">
+                  Switch back to Free (dev only)
+                </Button>
+              </form>
+            )}
         </div>
         {successfulPayment && (
           <p className="mt-2 text-xs text-akoma-ink/40">
@@ -126,9 +157,15 @@ export default async function SettingsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-akoma-ink">Schedule PDF</p>
-              <p className="text-xs text-akoma-ink/50">Your checklist, grouped by category, with due dates.</p>
+              <p className="text-xs text-akoma-ink/50">
+                Your checklist, grouped by category, with due dates.
+              </p>
             </div>
-            <LinkButton href="/api/export/schedule-pdf" size="sm" variant="secondary">
+            <LinkButton
+              href="/api/export/schedule-pdf"
+              size="sm"
+              variant="secondary"
+            >
               Download
             </LinkButton>
           </div>
@@ -137,10 +174,16 @@ export default async function SettingsPage() {
               <p className="flex items-center gap-2 text-sm font-medium text-akoma-ink">
                 Full report PDF <PassBadge />
               </p>
-              <p className="text-xs text-akoma-ink/50">Schedule, plus your budget breakdown and guest RSVP summary.</p>
+              <p className="text-xs text-akoma-ink/50">
+                Schedule, plus your budget breakdown and guest RSVP summary.
+              </p>
             </div>
             {canAccessPassFeatures(weddingPlan!) ? (
-              <LinkButton href="/api/export/full-report-pdf" size="sm" variant="secondary">
+              <LinkButton
+                href="/api/export/full-report-pdf"
+                size="sm"
+                variant="secondary"
+              >
                 Download
               </LinkButton>
             ) : (
@@ -149,6 +192,19 @@ export default async function SettingsPage() {
               </LinkButton>
             )}
           </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-akoma-ink">Report Bug</h2>
+            <p className="mt-1 text-sm text-akoma-ink/60">
+              Found something that is not working correctly? Send us the details
+              so we can investigate.
+            </p>
+          </div>
+          <ReportBugModal contactEmail={user.email} />
         </div>
       </Card>
     </div>

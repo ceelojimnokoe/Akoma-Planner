@@ -147,6 +147,7 @@ model User {
 
   ownedWeddingPlans WeddingPlan[]   @relation("WeddingOwner")
   memberships       WeddingMember[]
+  bugReports        BugReport[]
 }
 
 // Join table between User and WeddingPlan. Having this as its own model
@@ -216,6 +217,7 @@ model WeddingPlan {
   honeymoonPlan            HoneymoonPlan?
   honeymoonChecklistItems  HoneymoonChecklistItem[]
   documents                WeddingDocument[]
+  bugReports               BugReport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -782,4 +784,69 @@ model WeddingDocument {
   fileType      String
   fileSizeBytes Int
   createdAt     DateTime         @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Bug reports — Settings' "Report a bug" form. Deliberately not tied to
+// BisaAI's mock/real provider split or any Pass gate: every signed-in
+// user, Free or Pass, can file one. weddingPlanId is nullable (rather
+// than required) since the technical context it's reported alongside is
+// genuinely optional — see lib/session.ts's getCurrentWeddingPlan(),
+// which can return null for an account mid-onboarding. onDelete: SetNull
+// there (unlike the Cascade every other weddingPlanId relation in this
+// schema uses) is deliberate: a report shouldn't vanish just because the
+// wedding plan it referenced was later removed — this table is our own
+// internal record, not the couple's data. userId still cascades, same as
+// WeddingMember, so deleting an account cleans up its reports too.
+// ---------------------------------------------------------------------------
+
+enum BugSeverity {
+  MINOR
+  MODERATE
+  MAJOR
+  BLOCKING
+}
+
+enum BugReportStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model BugReport {
+  id            String       @id @default(cuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weddingPlanId String?
+  weddingPlan   WeddingPlan? @relation(fields: [weddingPlanId], references: [id], onDelete: SetNull)
+
+  title             String
+  description       String
+  affectedPage      String
+  reproductionSteps String?
+  expectedResult    String?
+  actualResult      String?
+  severity          BugSeverity @default(MODERATE)
+  contactEmail      String?
+  // Supabase Storage object path (same convention as
+  // WeddingDocument.storagePath) — never a bare public URL, since a
+  // screenshot can incidentally capture sensitive on-screen data. Signed
+  // URLs are minted on demand, same pattern as the Documents Vault.
+  screenshotUrl     String?
+
+  // Technical context, captured automatically at submission time — see
+  // server/actions/bug-reports.ts. Never secrets/tokens/cookies/payment
+  // data, only what's needed to reproduce and triage.
+  route       String?
+  userAgent   String?
+  environment String?
+  appVersion  String?
+
+  status    BugReportStatus @default(OPEN)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([status])
 }

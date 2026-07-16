@@ -89,12 +89,28 @@ export function ProfileForm({ profile }: { profile: CoupleProfile | null }) {
     <form onSubmit={handleSubmit} className="space-y-6">
       <Card>
         <h2 className="mb-4 font-semibold text-akoma-ink">Couple information</h2>
+        {/* suppressHydrationWarning on the name/phone/email fields below only:
+            these are the ones that arrive server-pre-filled with real values,
+            which is exactly what Chromium's autofill-preview feature targets —
+            it mutates the live input's style attribute (caret-color) itself,
+            outside of React, in the window between the server HTML painting
+            and React's hydration attribute-diff. See LEARNING.md #34 for the
+            original investigation (confirmed not reproducible by any app code
+            change: /guests' plain, non-pre-filled inputs never show it). */}
         <div className="grid grid-cols-2 gap-4">
           <Field label="Partner 1 name">
-            <Input value={form.partner1Name} onChange={(e) => update("partner1Name", e.target.value)} />
+            <Input
+              value={form.partner1Name}
+              onChange={(e) => update("partner1Name", e.target.value)}
+              suppressHydrationWarning
+            />
           </Field>
           <Field label="Partner 2 name">
-            <Input value={form.partner2Name} onChange={(e) => update("partner2Name", e.target.value)} />
+            <Input
+              value={form.partner2Name}
+              onChange={(e) => update("partner2Name", e.target.value)}
+              suppressHydrationWarning
+            />
           </Field>
           <Field label="Display name 1">
             <Input value={form.displayName1} onChange={(e) => update("displayName1", e.target.value)} />
@@ -103,13 +119,28 @@ export function ProfileForm({ profile }: { profile: CoupleProfile | null }) {
             <Input value={form.displayName2} onChange={(e) => update("displayName2", e.target.value)} />
           </Field>
           <Field label="Partner 1 phone">
-            <Input type="tel" value={form.partner1Phone} onChange={(e) => update("partner1Phone", e.target.value)} />
+            <Input
+              type="tel"
+              value={form.partner1Phone}
+              onChange={(e) => update("partner1Phone", e.target.value)}
+              suppressHydrationWarning
+            />
           </Field>
           <Field label="Partner 2 phone">
-            <Input type="tel" value={form.partner2Phone} onChange={(e) => update("partner2Phone", e.target.value)} />
+            <Input
+              type="tel"
+              value={form.partner2Phone}
+              onChange={(e) => update("partner2Phone", e.target.value)}
+              suppressHydrationWarning
+            />
           </Field>
           <Field label="Partner 2 email" error={result?.fieldErrors?.partner2Email}>
-            <Input type="email" value={form.partner2Email} onChange={(e) => update("partner2Email", e.target.value)} />
+            <Input
+              type="email"
+              value={form.partner2Email}
+              onChange={(e) => update("partner2Email", e.target.value)}
+              suppressHydrationWarning
+            />
           </Field>
         </div>
       </Card>

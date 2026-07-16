@@ -16,7 +16,6 @@
 "use client";
 
 import { useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 
 export function GoogleSignInButton() {
@@ -26,6 +25,11 @@ export function GoogleSignInButton() {
   async function handleClick() {
     setError(null);
     setIsRedirecting(true);
+    // Dynamically imported: @supabase/ssr's browser client pulls in the
+    // full supabase-js SDK, the single biggest chunk on the auth pages —
+    // no reason to ship it in /login and /signup's initial bundle when
+    // most visitors type a password instead of clicking this button.
+    const { createSupabaseBrowserClient } = await import("@/lib/supabase/client");
     const supabase = createSupabaseBrowserClient();
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",

@@ -51,7 +51,13 @@ export function VendorCard({
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-akoma-ink/10 bg-white shadow-sm">
       <Link href={`/vendors/${vendor.id}`} className="relative block h-44 w-full shrink-0 bg-akoma-cream">
-        <Image src={getVendorImage(vendor)} alt={vendor.name} fill className="object-cover" />
+        <Image
+          src={getVendorImage(vendor)}
+          alt={vendor.name}
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          className="object-cover"
+        />
         {vendor.isProFeatured && <FeaturedBadge className="absolute left-3 top-3" />}
         {showProgressBadge && (
           <Badge tone={VENDOR_PROGRESS_TONE[bookingProgress]} className="absolute right-3 top-3">

@@ -42,6 +42,7 @@ export function VendorStatusStep({ form, update }: StepProps) {
                   src={ONBOARDING_CATEGORY_IMAGES[c.value]}
                   alt=""
                   fill
+                  sizes="28px"
                   className="scale-[2.1] object-cover"
                 />
               </span>

@@ -7,6 +7,7 @@
 // the upgrade prompt instead of the table once they arrive.
 
 import Image from "next/image";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWeddingPlan } from "@/lib/session";
 import { requirePass } from "@/lib/plan";
@@ -67,12 +68,12 @@ export default async function VendorComparePage({
                 {vendors.map((v) => (
                   <tr key={v.id}>
                     <td className="py-3 pr-4">
-                      <a href={`/vendors/${v.id}`} className="flex items-center gap-3 hover:underline">
+                      <Link href={`/vendors/${v.id}`} className="flex items-center gap-3 hover:underline">
                         <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-akoma-cream">
-                          <Image src={getVendorImage(v)} alt="" fill className="object-cover" />
+                          <Image src={getVendorImage(v)} alt="" fill sizes="40px" className="object-cover" />
                         </span>
                         <span className="text-sm font-medium text-akoma-ink">{v.name}</span>
-                      </a>
+                      </Link>
                     </td>
                     <td className="py-3 pr-4 text-sm text-akoma-ink/70">{categoryLabel(v.category)}</td>
                     <td className="py-3 pr-4 text-sm text-akoma-ink/70">{cityLabel(v.city)}</td>

@@ -32,7 +32,13 @@ export function AccommodationCard({
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-akoma-ink/10 bg-white shadow-sm">
       <Link href={`/accommodation/${accommodation.id}`} className="relative block h-44 w-full shrink-0 bg-akoma-cream">
-        <Image src={getAccommodationImage(accommodation)} alt={accommodation.name} fill className="object-cover" />
+        <Image
+          src={getAccommodationImage(accommodation)}
+          alt={accommodation.name}
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          className="object-cover"
+        />
       </Link>
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-start justify-between gap-2">

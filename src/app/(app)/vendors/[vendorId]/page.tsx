@@ -52,7 +52,14 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ v
     <div className="mx-auto max-w-3xl space-y-6">
       <Card>
         <div className="relative mb-4 h-56 w-full overflow-hidden rounded-lg bg-akoma-cream">
-          <Image src={getVendorImage(vendor)} alt={vendor.name} fill className="object-cover" priority />
+          <Image
+            src={getVendorImage(vendor)}
+            alt={vendor.name}
+            fill
+            sizes="(max-width: 768px) 100vw, 768px"
+            className="object-cover"
+            priority
+          />
         </div>
 
         <div className="mb-1 flex items-center gap-2">
