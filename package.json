@@ -15,7 +15,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma db push --force-reset && npm run db:seed",
-    "setup:test-users": "tsx scripts/setup-test-users.ts"
+    "setup:test-users": "tsx scripts/setup-test-users.ts",
+    "diagnose:env": "tsx --env-file=.env scripts/diagnose-env.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

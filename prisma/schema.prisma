@@ -4,23 +4,34 @@
 // It compiles into a generated, fully-typed Prisma Client (src/generated or
 // node_modules/.prisma) that src/lib/prisma.ts imports from.
 //
-// PORTABILITY: every field type used below (String, Int, Float, Boolean,
-// DateTime, enum, relations) is standard Prisma and works identically on
-// Postgres. The only SQLite-specific line is `provider = "sqlite"` below.
-// Moving to hosted Postgres later (Neon/Supabase) means: change `provider`
-// to "postgresql", point DATABASE_URL at the hosted connection string, and
-// re-run `prisma db push` / `prisma migrate`. No model changes required.
-// (SQLite doesn't support native enums or arrays — Prisma simulates enums
-// as a checked String column on SQLite and will use a native Postgres enum
-// automatically once the provider changes. See LEARNING.md for detail.)
+// Postgres (Supabase's own project database) — moved off local SQLite
+// because a local `file:` datasource cannot work on Vercel's serverless
+// filesystem (read-only deployment bundle, ephemeral /tmp): every
+// database write in production — most importantly syncLocalUser()
+// running right after a successful Supabase login — failed with
+// DATABASE_URL unset, which is the confirmed root cause of production
+// login never completing. Since this project already has a Supabase
+// project for Auth, its built-in Postgres database is what DATABASE_URL/
+// DIRECT_URL now point at — no new vendor. `directUrl` exists because
+// Supabase's pooled connection (PgBouncer, port 6543 — what DATABASE_URL
+// uses so serverless functions don't exhaust direct connections) doesn't
+// support the prepared statements `prisma db push`/`migrate` need;
+// DIRECT_URL (port 5432) is used for those schema operations only. Both
+// come from Supabase Dashboard → Project Settings → Database → Connect →
+// ORMs → Prisma.
+//
+// This one datasource is shared by local dev and production alike (same
+// pattern this project's Supabase Auth project already used) — no
+// separate per-environment schema needed.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ---------------------------------------------------------------------------
