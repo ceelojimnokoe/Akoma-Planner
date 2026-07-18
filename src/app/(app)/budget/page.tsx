@@ -15,6 +15,7 @@ import { BudgetCategoryRow } from "@/components/budget/BudgetCategoryRow";
 import { AddBudgetCategoryForm } from "@/components/budget/AddBudgetCategoryForm";
 import { BudgetProgressBar } from "@/components/budget/BudgetProgressBar";
 import { BudgetAlertWatcher } from "@/components/budget/BudgetAlertWatcher";
+import { AutoAllocateBudgetModal } from "@/components/budget/AutoAllocateBudgetModal";
 import { TRADITIONAL_CUSTOMARY_BUDGET_NAME } from "@/lib/traditional-ceremony-defaults";
 
 export default async function BudgetPage() {
@@ -39,6 +40,16 @@ export default async function BudgetPage() {
       <BudgetAlertWatcher weddingPlanId={weddingPlan!.id} percentSpent={summary.percentSpent} />
 
       <Card>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-semibold text-akoma-ink">Not sure where to start?</h2>
+            <p className="mt-0.5 text-sm text-akoma-ink/60">Spread your total budget across categories automatically, then adjust anything by hand.</p>
+          </div>
+          <AutoAllocateBudgetModal />
+        </div>
+      </Card>
+
+      <Card>
         <AddBudgetCategoryForm weddingPlanId={weddingPlan!.id} />
       </Card>
 
@@ -58,22 +69,27 @@ export default async function BudgetPage() {
       </Card>
 
       <Card>
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-akoma-ink/10 text-xs uppercase tracking-wide text-akoma-ink/40">
-              <th className="pb-2 font-medium">Category</th>
-              <th className="pb-2 font-medium">Allocated</th>
-              <th className="pb-2 font-medium">Spent</th>
-              <th className="pb-2 font-medium">Remaining</th>
-              <th className="pb-2" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-akoma-ink/5">
-            {summary.categories.map((c) => (
-              <BudgetCategoryRow key={c.id} category={c} spentDerivedFrom={c.id === traditionalCustomaryId ? "Traditional Ceremony" : undefined} />
-            ))}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left">
+            <thead>
+              <tr className="border-b border-akoma-ink/10 text-xs uppercase tracking-wide text-akoma-ink/40">
+                <th className="pb-2 font-medium">Category</th>
+                <th className="pb-2 font-medium">Allocated</th>
+                <th className="pb-2 font-medium">Spent</th>
+                <th className="pb-2 font-medium">Remaining</th>
+                <th className="pb-2" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-akoma-ink/5">
+              {summary.categories.map((c) => (
+                <BudgetCategoryRow key={c.id} category={c} spentDerivedFrom={c.id === traditionalCustomaryId ? "Traditional Ceremony" : undefined} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {summary.categories.length > 0 && (
+          <p className="mt-2 text-center text-xs text-akoma-ink/40 sm:hidden">← Swipe to see all columns →</p>
+        )}
 
         {summary.categories.length === 0 && (
           <p className="py-6 text-center text-sm text-akoma-ink/50">

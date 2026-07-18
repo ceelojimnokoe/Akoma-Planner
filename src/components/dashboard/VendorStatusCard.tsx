@@ -55,7 +55,7 @@ export function VendorStatusCard({ interests }: { interests: CategoryInterest[] 
           const current = pickMostAdvancedInterest(byCategory.get(c.value as OnboardingVendorCategory) ?? []);
           const progress = current?.bookingProgress ?? "NOT_CONTACTED";
           return (
-            <li key={c.value} className="flex items-center justify-between gap-2 rounded-lg border border-akoma-ink/10 px-2.5 py-1.5">
+            <li key={c.value} className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-akoma-ink/10 px-2.5 py-1.5">
               <div className="flex min-w-0 items-center gap-2">
                 <span className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full bg-akoma-cream">
                   <Image src={ONBOARDING_CATEGORY_IMAGES[c.value]} alt="" fill sizes="24px" className="object-cover" />

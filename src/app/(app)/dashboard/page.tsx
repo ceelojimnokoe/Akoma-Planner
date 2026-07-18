@@ -23,6 +23,8 @@ import { GuestProgressCard } from "@/components/dashboard/GuestProgressCard";
 import { PendingGuestsCard } from "@/components/dashboard/PendingGuestsCard";
 import { WeddingHealthCard } from "@/components/dashboard/WeddingHealthCard";
 import { BisaAISuggestionsCard } from "@/components/dashboard/BisaAISuggestionsCard";
+import { BookedVendorCostPromptsCard } from "@/components/dashboard/BookedVendorCostPromptsCard";
+import { findBookedVendorCostPrompts } from "@/lib/booked-vendor-cost-prompts";
 import { FocusTaskList } from "@/components/dashboard/FocusTaskList";
 import { calculateGuestStats, selectPendingGuestFollowUps } from "@/lib/guests";
 import { Card } from "@/components/ui/Card";
@@ -122,6 +124,8 @@ export default async function DashboardPage() {
     (c) => criticalCategorySet.has(c.value) && bookedCategories.has(c.value)
   )?.label;
 
+  const bookedVendorCostPrompts = findBookedVendorCostPrompts(vendorBookingStatuses, budgetCategories);
+
   const health = getWeddingHealthScore({
     checklistPercent,
     weddingPlanCreatedAt: weddingPlan!.createdAt,
@@ -197,6 +201,11 @@ export default async function DashboardPage() {
       <WeddingHealthCard health={health} unbookedCategoryLabels={unbookedCategoryLabels} bookedCriticalCategoryLabel={bookedCriticalCategoryLabel} />
 
       <BisaAISuggestionsCard suggestions={suggestions} />
+
+      <BookedVendorCostPromptsCard
+        prompts={bookedVendorCostPrompts}
+        budgetCategories={budgetCategories.map((c) => ({ id: c.id, name: c.name, allocatedGHS: c.allocatedGHS }))}
+      />
 
       <Card>
         <div className="mb-4 flex items-center justify-between">

@@ -16,6 +16,7 @@ import { getCurrentUser } from "@/lib/session";
 import { canCreateWeddingPlan, canSetGuestEstimate } from "@/lib/plan";
 import { onboardingSchema, type OnboardingInput } from "@/lib/validation/wedding";
 import { buildDefaultChecklist } from "@/lib/checklist-defaults";
+import { determineOnboardingCompletedTitles } from "@/lib/onboarding-checklist-sync";
 import { buildDefaultBudgetCategories } from "@/lib/budget-defaults";
 import { buildDefaultTraditionalCeremonyItems, resolveTraditionalCeremonyCatalogCity } from "@/lib/traditional-ceremony-defaults";
 import { buildDefaultHoneymoonChecklist } from "@/lib/honeymoon-defaults";
@@ -79,6 +80,26 @@ export async function createWeddingPlan(rawInput: OnboardingInput): Promise<Crea
     where: { city: resolveTraditionalCeremonyCatalogCity(input.city) },
   });
 
+  // Marks the default checklist items done that the onboarding answers
+  // just given already satisfy (a set wedding date, a set budget, a
+  // chosen style/colour palette, a vendor category marked as already
+  // booked, ...) — see lib/onboarding-checklist-sync.ts. Computed before
+  // the create() below so this is one write, not a create followed by a
+  // second updateMany pass.
+  const completedTitles = determineOnboardingCompletedTitles({
+    budgetWasSet: input.totalBudgetGHS > 0,
+    weddingDateWasSet: true, // required field — always set by the time this action runs
+    guestEstimateWasSet: input.guestEstimate > 0,
+    theme: input.theme,
+    primaryColor: input.primaryColor,
+    secondaryColor: input.secondaryColor,
+    vendorStatus: input.vendorStatus,
+  });
+  const checklistItems = buildDefaultChecklist(input.weddingDate).map((item) => ({
+    ...item,
+    done: completedTitles.has(item.title),
+  }));
+
   const weddingPlan = await prisma.weddingPlan.create({
     data: {
       coupleNames: input.coupleNames,
@@ -89,7 +110,7 @@ export async function createWeddingPlan(rawInput: OnboardingInput): Promise<Crea
       tradition: input.tradition,
       ownerUserId: user.id,
       members: { create: { userId: user.id, role: "OWNER" } },
-      checklistItems: { createMany: { data: buildDefaultChecklist(input.weddingDate) } },
+      checklistItems: { createMany: { data: checklistItems } },
       budgetCategories: { createMany: { data: buildDefaultBudgetCategories() } },
       coupleProfile: {
         create: {

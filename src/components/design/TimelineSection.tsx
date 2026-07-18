@@ -85,7 +85,11 @@ export function TimelineSection({ weddingPlanId, entries }: { weddingPlanId: str
               defaultValue={entry.activity}
               onBlur={(e) => handleFieldBlur(entry.id, "activity", e.target.value)}
               aria-label="Activity"
-              className="flex-1 rounded-md border border-transparent px-2 py-1.5 text-sm text-akoma-ink hover:border-akoma-ink/15 focus:border-akoma-green focus:outline-none focus:ring-1 focus:ring-akoma-green"
+              // min-w-0 overrides a plain <input>'s own intrinsic minimum
+              // width, which flex-1 alone doesn't shrink below by default
+              // — without it this row forced the whole timeline card
+              // wider than the viewport on narrow screens.
+              className="min-w-0 flex-1 rounded-md border border-transparent px-2 py-1.5 text-sm text-akoma-ink hover:border-akoma-ink/15 focus:border-akoma-green focus:outline-none focus:ring-1 focus:ring-akoma-green"
             />
             <span className="shrink-0 text-xs text-akoma-ink/40">{entry.durationMinutes} min</span>
           </li>

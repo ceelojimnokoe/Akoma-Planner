@@ -57,6 +57,13 @@ export const DEFAULT_CHECKLIST_TEMPLATE: ChecklistTemplateItem[] = [
     daysBeforeWedding: 340,
     priority: "MEDIUM",
   },
+  {
+    title: "Choose your wedding style, theme and colour palette",
+    category: "Planning & Budget",
+    description: "Settle on an overall look and colour palette early — it shapes decisions across decor, attire, and invitations down the line.",
+    daysBeforeWedding: 270,
+    priority: "MEDIUM",
+  },
 
   // Venue
   {

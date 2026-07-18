@@ -17,6 +17,7 @@
 
 import { redirect } from "next/navigation";
 import { getCurrentUser, getCurrentWeddingPlan } from "@/lib/session";
+import { ensureReferenceDataSeeded } from "@/lib/reference-data";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { FloatingChatBubble } from "@/components/bisaai/FloatingChatBubble";
@@ -26,14 +27,25 @@ import { GuidedTourController } from "@/components/tour/GuidedTourController";
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const [user, weddingPlan] = await Promise.all([getCurrentUser(), getCurrentWeddingPlan()]);
+  // Runs on every request but is a no-op after the first per warm
+  // instance (see reference-data.ts) — the one guaranteed common
+  // ancestor of every page that might read Vendor/Accommodation, so
+  // vendor/accommodation browsing can never silently show an empty
+  // marketplace just because a database was never seeded.
+  const [user, weddingPlan] = await Promise.all([getCurrentUser(), getCurrentWeddingPlan(), ensureReferenceDataSeeded()]);
   if (!weddingPlan) redirect("/onboarding");
 
   return (
     <ToastProvider>
       <div className="flex min-h-screen">
         <Sidebar user={user} hasWeddingPass={weddingPlan.hasWeddingPass} />
-        <div className="flex flex-1 flex-col">
+        {/* min-w-0 is load-bearing: flex items default to min-width: auto,
+            which lets this column refuse to shrink below the intrinsic
+            (unwrapped) width of whatever's inside it — on a narrow
+            viewport that silently forced this whole column, and every
+            page inside it, wider than the screen instead of letting any
+            individual overflowing content wrap/scroll on its own. */}
+        <div className="flex min-w-0 flex-1 flex-col">
           <TopBar weddingPlan={weddingPlan} user={user} />
           {/* Extra bottom padding reserves room for the floating chat bubble
               (see FloatingChatBubble.tsx) so it doesn't sit on top of the

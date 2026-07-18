@@ -65,22 +65,31 @@ export default async function GuestsPage() {
       </Card>
 
       <Card>
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-akoma-ink/10 text-xs uppercase tracking-wide text-akoma-ink/40">
-              <th className="pb-2 font-medium">Guest</th>
-              <th className="pb-2 font-medium">Side</th>
-              <th className="pb-2 font-medium">RSVP</th>
-              <th className="pb-2 font-medium">Group</th>
-              <th className="pb-2" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-akoma-ink/5">
-            {guests.map((g) => (
-              <GuestRow key={g.id} guest={g} />
-            ))}
-          </tbody>
-        </table>
+        {/* overflow-x-auto keeps a wide table's scroll contained to just
+            this box on narrow screens — the rest of the page (and the
+            Card around it) stays fixed to the viewport width instead of
+            the whole page growing sideways. */}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left">
+            <thead>
+              <tr className="border-b border-akoma-ink/10 text-xs uppercase tracking-wide text-akoma-ink/40">
+                <th className="pb-2 font-medium">Guest</th>
+                <th className="pb-2 font-medium">Side</th>
+                <th className="pb-2 font-medium">RSVP</th>
+                <th className="pb-2 font-medium">Group</th>
+                <th className="pb-2" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-akoma-ink/5">
+              {guests.map((g) => (
+                <GuestRow key={g.id} guest={g} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {guests.length > 0 && (
+          <p className="mt-2 text-center text-xs text-akoma-ink/40 sm:hidden">← Swipe to see all columns →</p>
+        )}
 
         {guests.length === 0 && (
           <p className="py-6 text-center text-sm text-akoma-ink/50">No guests yet — add one above.</p>
