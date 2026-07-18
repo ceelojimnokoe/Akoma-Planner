@@ -16,6 +16,8 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { formatAuthError } from "@/lib/auth-errors";
+import { useSubmitGuard } from "@/hooks/useSubmitGuard";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -30,6 +32,7 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { guard, blocked } = useSubmitGuard();
   const router = useRouter();
 
   useEffect(() => {
@@ -56,17 +59,24 @@ export default function ResetPasswordPage() {
       setError("Passwords don't match");
       return;
     }
-    startTransition(async () => {
-      const { createSupabaseBrowserClient } = await import("@/lib/supabase/client");
-      const supabase = createSupabaseBrowserClient();
-      const { error: updateError } = await supabase.auth.updateUser({ password });
-      if (updateError) {
-        setError(updateError.message);
-        return;
-      }
-      setStatus("done");
-      setTimeout(() => router.push("/dashboard"), 1500);
-    });
+    startTransition(() =>
+      guard(async () => {
+        const { createSupabaseBrowserClient } = await import("@/lib/supabase/client");
+        const supabase = createSupabaseBrowserClient();
+        const { error: updateError } = await supabase.auth.updateUser({ password });
+        if (updateError) {
+          // Never the raw Supabase message (e.g. a stale/expired
+          // recovery session reads as a cryptic JWT error) — see
+          // lib/auth-errors.ts.
+          setError(formatAuthError(updateError));
+          setPassword("");
+          setConfirmPassword("");
+          return;
+        }
+        setStatus("done");
+        setTimeout(() => router.push("/dashboard"), 1500);
+      })
+    );
   }
 
   return (
@@ -97,7 +107,13 @@ export default function ResetPasswordPage() {
           {status === "ready" && (
             <form onSubmit={handleSubmit} className="space-y-5">
               <Field label="New password" hint="At least 8 characters">
-                <Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+                <Input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
               </Field>
               <Field label="Confirm new password">
                 <Input
@@ -105,10 +121,15 @@ export default function ResetPasswordPage() {
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
                 />
               </Field>
-              {error && <p className="rounded-lg bg-akoma-terracotta/10 px-3 py-2 text-sm text-akoma-terracotta">{error}</p>}
-              <Button type="submit" disabled={isPending} className="w-full">
+              {error && (
+                <p role="alert" className="rounded-lg bg-akoma-terracotta/10 px-3 py-2 text-sm text-akoma-terracotta">
+                  {error}
+                </p>
+              )}
+              <Button type="submit" disabled={isPending || blocked} className="w-full">
                 {isPending ? "Updating…" : "Update password"}
               </Button>
             </form>

@@ -20,7 +20,11 @@ import { NextResponse, type NextRequest } from "next/server";
 // Everything that requires a signed-in visitor. Prefix match (via
 // startsWith below), so nested routes (e.g. /vendors/[vendorId]) are
 // covered by their parent's entry without listing every dynamic segment.
-const PROTECTED_PREFIXES = [
+// Exported (along with AUTH_ONLY_PREFIXES/matchesPrefix below) purely so
+// tests/middleware-routes.test.ts can verify route classification
+// without spinning up a real Next.js request/response — no behavior
+// change from being exported.
+export const PROTECTED_PREFIXES = [
   "/dashboard",
   "/budget",
   "/checklist",
@@ -43,9 +47,9 @@ const PROTECTED_PREFIXES = [
 // Pages that only make sense for a signed-out visitor — an already
 // authenticated user hitting these gets sent straight to their dashboard
 // instead of seeing a login form for an account they're already in.
-const AUTH_ONLY_PREFIXES = ["/login", "/signup"];
+export const AUTH_ONLY_PREFIXES = ["/login", "/signup"];
 
-function matchesPrefix(pathname: string, prefixes: string[]): boolean {
+export function matchesPrefix(pathname: string, prefixes: string[]): boolean {
   return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 

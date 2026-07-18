@@ -10,6 +10,7 @@
 
 import { useState, useTransition } from "react";
 import { requestPasswordReset } from "@/server/actions/auth";
+import { useSubmitGuard } from "@/hooks/useSubmitGuard";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -20,13 +21,20 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const { guard, blocked } = useSubmitGuard();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    startTransition(async () => {
-      await requestPasswordReset(email);
-      setSubmitted(true);
-    });
+    startTransition(() =>
+      guard(async () => {
+        // requestPasswordReset() always resolves { ok: true } — logging
+        // any real failure server-side instead of surfacing it here —
+        // since revealing a failure would itself leak whether the email
+        // exists. See that action's own comment.
+        await requestPasswordReset(email);
+        setSubmitted(true);
+      })
+    );
   }
 
   return (
@@ -50,9 +58,10 @@ export default function ForgotPasswordPage() {
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
                 />
               </Field>
-              <Button type="submit" disabled={isPending} className="w-full">
+              <Button type="submit" disabled={isPending || blocked} className="w-full">
                 {isPending ? "Sending…" : "Send reset link"}
               </Button>
             </form>
